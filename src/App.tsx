@@ -147,6 +147,7 @@ export default function App() {
   }, []);
 
   const fetchData = async () => {
+    console.log("Fetching data from server...");
     setLoading(true);
     try {
       const [pRes, wRes, bRes, cpRes, kRes, aRes] = await Promise.all([
@@ -158,14 +159,28 @@ export default function App() {
         fetch('/api/advances')
       ]);
       
-      setProjects(await pRes.json());
-      setWorkers(await wRes.json());
-      setBilling(await bRes.json());
-      setClientPayments(await cpRes.json());
-      setKharchi(await kRes.json());
-      setAdvances(await aRes.json());
+      if (!pRes.ok || !wRes.ok || !bRes.ok || !cpRes.ok || !kRes.ok || !aRes.ok) {
+        throw new Error("One or more API calls failed");
+      }
+
+      const p = await pRes.json();
+      const w = await wRes.json();
+      const b = await bRes.json();
+      const cp = await cpRes.json();
+      const k = await kRes.json();
+      const a = await aRes.json();
+
+      console.log("Data fetched successfully:", { projects: p.length, workers: w.length });
+      
+      setProjects(p);
+      setWorkers(w);
+      setBilling(b);
+      setClientPayments(cp);
+      setKharchi(k);
+      setAdvances(a);
     } catch (error) {
       console.error("Error fetching data:", error);
+      showNotification("Failed to fetch data from server", "error");
     } finally {
       setLoading(false);
     }
@@ -200,6 +215,20 @@ export default function App() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <button 
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/test');
+                const data = await res.json();
+                showNotification(`Connection OK: ${data.message}`);
+              } catch (e) {
+                showNotification("Connection Failed", "error");
+              }
+            }}
+            className="text-[10px] bg-sap-blue text-white px-2 py-0.5 rounded hover:bg-opacity-80"
+          >
+            Test Connection
+          </button>
           <div className="bg-white border border-sap-border px-2 py-0.5 flex items-center gap-2">
             <Search size={12} className="text-gray-400" />
             <input placeholder="Quick Access" className="outline-none text-[10px] w-32" />
@@ -256,14 +285,14 @@ export default function App() {
         <AnimatePresence>
           {notification && (
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -50 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className={`absolute top-4 right-4 z-50 p-3 rounded shadow-lg border ${
-                notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
-              } text-[11px] font-bold flex items-center gap-2`}
+              exit={{ opacity: 0, y: -50 }}
+              className={`fixed top-10 left-1/2 -translate-x-1/2 z-[9999] p-4 rounded-lg shadow-2xl border-2 ${
+                notification.type === 'success' ? 'bg-green-100 border-green-500 text-green-900' : 'bg-red-100 border-red-500 text-red-900'
+              } text-[13px] font-bold flex items-center gap-3 min-w-[300px] justify-center`}
             >
-              <Info size={14} />
+              <Info size={18} />
               {notification.message}
             </motion.div>
           )}

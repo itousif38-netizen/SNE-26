@@ -95,6 +95,11 @@ async function startServer() {
 
   app.use(express.json());
 
+  app.get("/api/test", (req, res) => {
+    console.log("Test route hit");
+    res.json({ message: "Server is alive", time: new Date().toISOString() });
+  });
+
   // API Routes
   
   // Projects
@@ -104,14 +109,16 @@ async function startServer() {
   });
 
   app.post("/api/projects", (req, res) => {
-    console.log("POST /api/projects", req.body);
+    console.log("POST /api/projects received:", req.body);
     try {
       const { name, start_date, address, budget } = req.body;
+      if (!name) throw new Error("Project name is required");
+      
       const info = db.prepare("INSERT INTO projects (name, start_date, address, budget) VALUES (?, ?, ?, ?)").run(name, start_date, address, budget);
-      console.log("Project inserted:", info);
+      console.log("Project inserted successfully:", info);
       res.json({ id: info.lastInsertRowid });
     } catch (e: any) {
-      console.error("Error in POST /api/projects:", e);
+      console.error("CRITICAL ERROR in POST /api/projects:", e);
       res.status(500).json({ error: e.message });
     }
   });
