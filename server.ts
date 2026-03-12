@@ -3,85 +3,91 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import Database from "better-sqlite3";
 
-const db = new Database("construct_erp.db");
+const db = new Database("construct_erp.db", { verbose: console.log });
 
 // Initialize Database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS projects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    start_date TEXT,
-    address TEXT,
-    budget REAL
-  );
+db.exec("PRAGMA foreign_keys = ON;");
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      start_date TEXT,
+      address TEXT,
+      budget REAL
+    );
 
-  CREATE TABLE IF NOT EXISTS workers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    worker_id TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    project_id INTEGER,
-    designation TEXT,
-    joining_date TEXT,
-    serial_no TEXT,
-    FOREIGN KEY(project_id) REFERENCES projects(id)
-  );
+    CREATE TABLE IF NOT EXISTS workers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      project_id INTEGER,
+      designation TEXT,
+      joining_date TEXT,
+      serial_no TEXT,
+      FOREIGN KEY(project_id) REFERENCES projects(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS billing (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sr_no TEXT,
-    project_id INTEGER,
-    bill_no TEXT,
-    work_nature TEXT,
-    amount REAL,
-    month TEXT,
-    certify_date TEXT,
-    FOREIGN KEY(project_id) REFERENCES projects(id)
-  );
+    CREATE TABLE IF NOT EXISTS billing (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sr_no TEXT,
+      project_id INTEGER,
+      bill_no TEXT,
+      work_nature TEXT,
+      amount REAL,
+      month TEXT,
+      certify_date TEXT,
+      FOREIGN KEY(project_id) REFERENCES projects(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS client_payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id INTEGER,
-    bill_value REAL,
-    amount_received REAL,
-    balance REAL,
-    FOREIGN KEY(project_id) REFERENCES projects(id)
-  );
+    CREATE TABLE IF NOT EXISTS client_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER,
+      bill_value REAL,
+      amount_received REAL,
+      balance REAL,
+      FOREIGN KEY(project_id) REFERENCES projects(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS kharchi (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    worker_id TEXT,
-    project_id INTEGER,
-    amount REAL,
-    date TEXT,
-    FOREIGN KEY(worker_id) REFERENCES workers(worker_id),
-    FOREIGN KEY(project_id) REFERENCES projects(id)
-  );
+    CREATE TABLE IF NOT EXISTS kharchi (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id TEXT,
+      project_id INTEGER,
+      amount REAL,
+      date TEXT,
+      FOREIGN KEY(worker_id) REFERENCES workers(worker_id),
+      FOREIGN KEY(project_id) REFERENCES projects(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS advances (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    worker_id TEXT,
-    project_id INTEGER,
-    amount REAL,
-    paid_by TEXT,
-    remarks TEXT,
-    date TEXT,
-    FOREIGN KEY(worker_id) REFERENCES workers(worker_id),
-    FOREIGN KEY(project_id) REFERENCES projects(id)
-  );
+    CREATE TABLE IF NOT EXISTS advances (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id TEXT,
+      project_id INTEGER,
+      amount REAL,
+      paid_by TEXT,
+      remarks TEXT,
+      date TEXT,
+      FOREIGN KEY(worker_id) REFERENCES workers(worker_id),
+      FOREIGN KEY(project_id) REFERENCES projects(id)
+    );
 
-  CREATE TABLE IF NOT EXISTS worker_payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    worker_id TEXT,
-    project_id INTEGER,
-    work_amount REAL,
-    mess_deduction REAL,
-    month TEXT,
-    year INTEGER,
-    UNIQUE(worker_id, project_id, month, year),
-    FOREIGN KEY(worker_id) REFERENCES workers(worker_id),
-    FOREIGN KEY(project_id) REFERENCES projects(id)
-  );
-`);
+    CREATE TABLE IF NOT EXISTS worker_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id TEXT,
+      project_id INTEGER,
+      work_amount REAL,
+      mess_deduction REAL,
+      month TEXT,
+      year INTEGER,
+      UNIQUE(worker_id, project_id, month, year),
+      FOREIGN KEY(worker_id) REFERENCES workers(worker_id),
+      FOREIGN KEY(project_id) REFERENCES projects(id)
+    );
+  `);
+  console.log("Database tables initialized");
+} catch (e) {
+  console.error("Database initialization error:", e);
+}
 
 async function startServer() {
   const app = express();
@@ -98,9 +104,16 @@ async function startServer() {
   });
 
   app.post("/api/projects", (req, res) => {
-    const { name, start_date, address, budget } = req.body;
-    const info = db.prepare("INSERT INTO projects (name, start_date, address, budget) VALUES (?, ?, ?, ?)").run(name, start_date, address, budget);
-    res.json({ id: info.lastInsertRowid });
+    console.log("POST /api/projects", req.body);
+    try {
+      const { name, start_date, address, budget } = req.body;
+      const info = db.prepare("INSERT INTO projects (name, start_date, address, budget) VALUES (?, ?, ?, ?)").run(name, start_date, address, budget);
+      console.log("Project inserted:", info);
+      res.json({ id: info.lastInsertRowid });
+    } catch (e: any) {
+      console.error("Error in POST /api/projects:", e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Workers
@@ -114,11 +127,14 @@ async function startServer() {
   });
 
   app.post("/api/workers", (req, res) => {
+    console.log("POST /api/workers", req.body);
     const { worker_id, name, project_id, designation, joining_date, serial_no } = req.body;
     try {
       const info = db.prepare("INSERT INTO workers (worker_id, name, project_id, designation, joining_date, serial_no) VALUES (?, ?, ?, ?, ?, ?)").run(worker_id, name, project_id, designation, joining_date, serial_no);
+      console.log("Worker inserted:", info);
       res.json({ id: info.lastInsertRowid });
     } catch (e: any) {
+      console.error("Error in POST /api/workers:", e);
       res.status(400).json({ error: e.message });
     }
   });
@@ -134,9 +150,15 @@ async function startServer() {
   });
 
   app.post("/api/billing", (req, res) => {
-    const { sr_no, project_id, bill_no, work_nature, amount, month, certify_date } = req.body;
-    const info = db.prepare("INSERT INTO billing (sr_no, project_id, bill_no, work_nature, amount, month, certify_date) VALUES (?, ?, ?, ?, ?, ?, ?)").run(sr_no, project_id, bill_no, work_nature, amount, month, certify_date);
-    res.json({ id: info.lastInsertRowid });
+    console.log("POST /api/billing", req.body);
+    try {
+      const { sr_no, project_id, bill_no, work_nature, amount, month, certify_date } = req.body;
+      const info = db.prepare("INSERT INTO billing (sr_no, project_id, bill_no, work_nature, amount, month, certify_date) VALUES (?, ?, ?, ?, ?, ?, ?)").run(sr_no, project_id, bill_no, work_nature, amount, month, certify_date);
+      res.json({ id: info.lastInsertRowid });
+    } catch (e: any) {
+      console.error("Error in POST /api/billing:", e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Client Payments
@@ -150,9 +172,15 @@ async function startServer() {
   });
 
   app.post("/api/client-payments", (req, res) => {
-    const { project_id, bill_value, amount_received, balance } = req.body;
-    const info = db.prepare("INSERT INTO client_payments (project_id, bill_value, amount_received, balance) VALUES (?, ?, ?, ?)").run(project_id, bill_value, amount_received, balance);
-    res.json({ id: info.lastInsertRowid });
+    console.log("POST /api/client-payments", req.body);
+    try {
+      const { project_id, bill_value, amount_received, balance } = req.body;
+      const info = db.prepare("INSERT INTO client_payments (project_id, bill_value, amount_received, balance) VALUES (?, ?, ?, ?)").run(project_id, bill_value, amount_received, balance);
+      res.json({ id: info.lastInsertRowid });
+    } catch (e: any) {
+      console.error("Error in POST /api/client-payments:", e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Kharchi
@@ -167,9 +195,15 @@ async function startServer() {
   });
 
   app.post("/api/kharchi", (req, res) => {
-    const { worker_id, project_id, amount, date } = req.body;
-    const info = db.prepare("INSERT INTO kharchi (worker_id, project_id, amount, date) VALUES (?, ?, ?, ?)").run(worker_id, project_id, amount, date);
-    res.json({ id: info.lastInsertRowid });
+    console.log("POST /api/kharchi", req.body);
+    try {
+      const { worker_id, project_id, amount, date } = req.body;
+      const info = db.prepare("INSERT INTO kharchi (worker_id, project_id, amount, date) VALUES (?, ?, ?, ?)").run(worker_id, project_id, amount, date);
+      res.json({ id: info.lastInsertRowid });
+    } catch (e: any) {
+      console.error("Error in POST /api/kharchi:", e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Advances
@@ -184,9 +218,15 @@ async function startServer() {
   });
 
   app.post("/api/advances", (req, res) => {
-    const { worker_id, project_id, amount, paid_by, remarks, date } = req.body;
-    const info = db.prepare("INSERT INTO advances (worker_id, project_id, amount, paid_by, remarks, date) VALUES (?, ?, ?, ?, ?, ?)").run(worker_id, project_id, amount, paid_by, remarks, date);
-    res.json({ id: info.lastInsertRowid });
+    console.log("POST /api/advances", req.body);
+    try {
+      const { worker_id, project_id, amount, paid_by, remarks, date } = req.body;
+      const info = db.prepare("INSERT INTO advances (worker_id, project_id, amount, paid_by, remarks, date) VALUES (?, ?, ?, ?, ?, ?)").run(worker_id, project_id, amount, paid_by, remarks, date);
+      res.json({ id: info.lastInsertRowid });
+    } catch (e: any) {
+      console.error("Error in POST /api/advances:", e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Worker Payments (Calculated)
@@ -237,15 +277,21 @@ async function startServer() {
   });
 
   app.post("/api/worker-payments", (req, res) => {
-    const { worker_id, project_id, work_amount, mess_deduction, month, year } = req.body;
-    const info = db.prepare(`
-      INSERT INTO worker_payments (worker_id, project_id, work_amount, mess_deduction, month, year) 
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(worker_id, project_id, month, year) DO UPDATE SET
-      work_amount = excluded.work_amount,
-      mess_deduction = excluded.mess_deduction
-    `).run(worker_id, project_id, work_amount, mess_deduction, month, year);
-    res.json({ id: info.lastInsertRowid });
+    console.log("POST /api/worker-payments", req.body);
+    try {
+      const { worker_id, project_id, work_amount, mess_deduction, month, year } = req.body;
+      const info = db.prepare(`
+        INSERT INTO worker_payments (worker_id, project_id, work_amount, mess_deduction, month, year) 
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(worker_id, project_id, month, year) DO UPDATE SET
+        work_amount = excluded.work_amount,
+        mess_deduction = excluded.mess_deduction
+      `).run(worker_id, project_id, work_amount, mess_deduction, month, year);
+      res.json({ id: info.lastInsertRowid });
+    } catch (e: any) {
+      console.error("Error in POST /api/worker-payments:", e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Vite middleware for development

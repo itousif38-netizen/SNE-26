@@ -135,6 +135,12 @@ export default function App() {
   const [kharchi, setKharchi] = useState<Kharchi[]>([]);
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   useEffect(() => {
     fetchData();
@@ -167,13 +173,13 @@ export default function App() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'projects': return <ProjectsSection projects={projects} onRefresh={fetchData} />;
-      case 'workers': return <WorkersSection workers={workers} projects={projects} onRefresh={fetchData} />;
-      case 'billing': return <BillingSection billing={billing} projects={projects} onRefresh={fetchData} />;
-      case 'client-payments': return <ClientPaymentsSection payments={clientPayments} projects={projects} onRefresh={fetchData} />;
-      case 'kharchi': return <KharchiSection kharchi={kharchi} projects={projects} workers={workers} onRefresh={fetchData} />;
-      case 'advances': return <AdvancesSection advances={advances} projects={projects} workers={workers} onRefresh={fetchData} />;
-      case 'worker-payments': return <WorkerPaymentsSection projects={projects} onRefresh={fetchData} />;
+      case 'projects': return <ProjectsSection projects={projects} onRefresh={fetchData} notify={showNotification} />;
+      case 'workers': return <WorkersSection workers={workers} projects={projects} onRefresh={fetchData} notify={showNotification} />;
+      case 'billing': return <BillingSection billing={billing} projects={projects} onRefresh={fetchData} notify={showNotification} />;
+      case 'client-payments': return <ClientPaymentsSection payments={clientPayments} projects={projects} onRefresh={fetchData} notify={showNotification} />;
+      case 'kharchi': return <KharchiSection kharchi={kharchi} projects={projects} workers={workers} onRefresh={fetchData} notify={showNotification} />;
+      case 'advances': return <AdvancesSection advances={advances} projects={projects} workers={workers} onRefresh={fetchData} notify={showNotification} />;
+      case 'worker-payments': return <WorkerPaymentsSection projects={projects} onRefresh={fetchData} notify={showNotification} />;
       default: return null;
     }
   };
@@ -246,8 +252,23 @@ export default function App() {
             <div className="sap-tab">Configuration</div>
           </div>
           
-          <main className="flex-1 overflow-y-auto p-4 bg-white">
-            <AnimatePresence mode="wait">
+      <main className="flex-1 overflow-y-auto p-4 bg-white relative">
+        <AnimatePresence>
+          {notification && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={`absolute top-4 right-4 z-50 p-3 rounded shadow-lg border ${
+                notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
+              } text-[11px] font-bold flex items-center gap-2`}
+            >
+              <Info size={14} />
+              {notification.message}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0 }}
@@ -300,19 +321,35 @@ export default function App() {
 
 // --- Sub-sections ---
 
-function ProjectsSection({ projects, onRefresh }: { projects: Project[], onRefresh: () => void }) {
+function ProjectsSection({ projects, onRefresh, notify }: { projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', start_date: '', address: '', budget: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-    setShowForm(false);
-    onRefresh();
+    console.log("Submitting project:", formData);
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          budget: Number(formData.budget)
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save project');
+      }
+
+      notify('Project saved successfully!');
+      setShowForm(false);
+      onRefresh();
+    } catch (error: any) {
+      console.error("Project save error:", error);
+      notify(`Error: ${error.message}`, 'error');
+    }
   };
 
   return (
@@ -407,19 +444,30 @@ function ProjectsSection({ projects, onRefresh }: { projects: Project[], onRefre
   );
 }
 
-function WorkersSection({ workers, projects, onRefresh }: { workers: Worker[], projects: Project[], onRefresh: () => void }) {
+function WorkersSection({ workers, projects, onRefresh, notify }: { workers: Worker[], projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ worker_id: '', name: '', project_id: '', designation: '', joining_date: '', serial_no: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/workers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-    setShowForm(false);
-    onRefresh();
+    try {
+      const response = await fetch('/api/workers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to register worker');
+      }
+
+      notify('Worker registered successfully!');
+      setShowForm(false);
+      onRefresh();
+    } catch (error: any) {
+      notify(`Error: ${error.message}`, 'error');
+    }
   };
 
   const getWorkerCountByProject = (projectId: number) => {
@@ -510,19 +558,33 @@ function WorkersSection({ workers, projects, onRefresh }: { workers: Worker[], p
   );
 }
 
-function BillingSection({ billing, projects, onRefresh }: { billing: Billing[], projects: Project[], onRefresh: () => void }) {
+function BillingSection({ billing, projects, onRefresh, notify }: { billing: Billing[], projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ sr_no: '', project_id: '', bill_no: '', work_nature: '', amount: '', month: '', certify_date: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/billing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-    setShowForm(false);
-    onRefresh();
+    try {
+      const response = await fetch('/api/billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          amount: Number(formData.amount)
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save bill');
+      }
+
+      notify('Bill saved successfully!');
+      setShowForm(false);
+      onRefresh();
+    } catch (error: any) {
+      notify(`Error: ${error.message}`, 'error');
+    }
   };
 
   const totalBilling = billing.reduce((sum, b) => sum + b.amount, 0);
@@ -634,20 +696,36 @@ function BillingSection({ billing, projects, onRefresh }: { billing: Billing[], 
   );
 }
 
-function ClientPaymentsSection({ payments, projects, onRefresh }: { payments: ClientPayment[], projects: Project[], onRefresh: () => void }) {
+function ClientPaymentsSection({ payments, projects, onRefresh, notify }: { payments: ClientPayment[], projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ project_id: '', bill_value: '', amount_received: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const balance = Number(formData.bill_value) - Number(formData.amount_received);
-    await fetch('/api/client-payments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...formData, balance })
-    });
-    setShowForm(false);
-    onRefresh();
+    try {
+      const balance = Number(formData.bill_value) - Number(formData.amount_received);
+      const response = await fetch('/api/client-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ...formData, 
+          bill_value: Number(formData.bill_value),
+          amount_received: Number(formData.amount_received),
+          balance 
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to record payment');
+      }
+
+      notify('Payment recorded successfully!');
+      setShowForm(false);
+      onRefresh();
+    } catch (error: any) {
+      notify(`Error: ${error.message}`, 'error');
+    }
   };
 
   return (
@@ -704,7 +782,7 @@ function ClientPaymentsSection({ payments, projects, onRefresh }: { payments: Cl
   );
 }
 
-function KharchiSection({ kharchi, projects, workers, onRefresh }: { kharchi: Kharchi[], projects: Project[], workers: Worker[], onRefresh: () => void }) {
+function KharchiSection({ kharchi, projects, workers, onRefresh, notify }: { kharchi: Kharchi[], projects: Project[], workers: Worker[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ worker_id: '', amount: '', date: '' });
@@ -713,13 +791,28 @@ function KharchiSection({ kharchi, projects, workers, onRefresh }: { kharchi: Kh
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/kharchi', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...formData, project_id: selectedProject })
-    });
-    setShowForm(false);
-    onRefresh();
+    try {
+      const response = await fetch('/api/kharchi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ...formData, 
+          amount: Number(formData.amount),
+          project_id: Number(selectedProject) 
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save entry');
+      }
+
+      notify('Kharchi entry saved!');
+      setShowForm(false);
+      onRefresh();
+    } catch (error: any) {
+      notify(`Error: ${error.message}`, 'error');
+    }
   };
 
   return (
@@ -795,7 +888,7 @@ function KharchiSection({ kharchi, projects, workers, onRefresh }: { kharchi: Kh
   );
 }
 
-function AdvancesSection({ advances, projects, workers, onRefresh }: { advances: Advance[], projects: Project[], workers: Worker[], onRefresh: () => void }) {
+function AdvancesSection({ advances, projects, workers, onRefresh, notify }: { advances: Advance[], projects: Project[], workers: Worker[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ worker_id: '', amount: '', paid_by: '', remarks: '', date: '' });
@@ -804,13 +897,28 @@ function AdvancesSection({ advances, projects, workers, onRefresh }: { advances:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/advances', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...formData, project_id: selectedProject })
-    });
-    setShowForm(false);
-    onRefresh();
+    try {
+      const response = await fetch('/api/advances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ...formData, 
+          amount: Number(formData.amount),
+          project_id: Number(selectedProject) 
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save advance');
+      }
+
+      notify('Advance recorded successfully!');
+      setShowForm(false);
+      onRefresh();
+    } catch (error: any) {
+      notify(`Error: ${error.message}`, 'error');
+    }
   };
 
   const totalAdvance = advances
@@ -905,7 +1013,7 @@ function AdvancesSection({ advances, projects, workers, onRefresh }: { advances:
   );
 }
 
-function WorkerPaymentsSection({ projects, onRefresh }: { projects: Project[], onRefresh: () => void }) {
+function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [month, setMonth] = useState<string>(new Date().toISOString().slice(5, 7));
   const [year, setYear] = useState<string>(new Date().getFullYear().toString());
@@ -924,20 +1032,31 @@ function WorkerPaymentsSection({ projects, onRefresh }: { projects: Project[], o
   }, [selectedProject, month, year]);
 
   const handleSavePayment = async (workerId: string) => {
-    await fetch('/api/worker-payments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        worker_id: workerId,
-        project_id: selectedProject,
-        work_amount: Number(editData.work_amount),
-        mess_deduction: Number(editData.mess_deduction),
-        month,
-        year: Number(year)
-      })
-    });
-    setEditingWorker(null);
-    fetchSummaries();
+    try {
+      const response = await fetch('/api/worker-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          worker_id: workerId,
+          project_id: Number(selectedProject),
+          work_amount: Number(editData.work_amount),
+          mess_deduction: Number(editData.mess_deduction),
+          month,
+          year: Number(year)
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save payment');
+      }
+
+      notify('Payment settlement saved!');
+      setEditingWorker(null);
+      fetchSummaries();
+    } catch (error: any) {
+      notify(`Error: ${error.message}`, 'error');
+    }
   };
 
   return (
