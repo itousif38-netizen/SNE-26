@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sap-blue: #005483;
+  --color-sap-light-blue: #e5f0f7;
+  --color-sap-gray: #f7f7f7;
+  --color-sap-border: #d9d9d9;
+  --color-sap-text: #333333;
+  --color-sap-accent: #0070b1;
+}
+
+@layer base {
+  body {
+    @apply bg-sap-gray text-sap-text font-sans;
+  }
+}
+
+@layer components {
+  .sap-card {
+    @apply bg-white border border-sap-border shadow-sm rounded-sm;
+  }
+  .sap-table {
+    @apply w-full border-collapse text-sm;
+  }
+  .sap-table th {
+    @apply bg-sap-gray border border-sap-border p-2 text-left font-semibold text-xs uppercase tracking-wider;
+  }
+  .sap-table td {
+    @apply border border-sap-border p-2;
+  }
+  .sap-table tr:nth-child(even) {
+    @apply bg-gray-50;
+  }
+  .sap-btn-primary {
+    @apply bg-sap-blue text-white px-4 py-1.5 rounded-sm hover:bg-sap-accent transition-colors text-sm font-medium;
+  }
+  .sap-input {
+    @apply border border-sap-border px-2 py-1.5 rounded-sm focus:outline-none focus:border-sap-blue text-sm w-full;
+  }
+}
