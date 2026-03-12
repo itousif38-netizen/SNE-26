@@ -95,6 +95,12 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Request Logger
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
   app.get("/api/test", (req, res) => {
     console.log("Test route hit");
     res.json({ message: "Server is alive", time: new Date().toISOString() });
@@ -318,6 +324,12 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  // Global Error Handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("GLOBAL ERROR:", err);
+    res.status(500).json({ error: err.message || "Internal Server Error" });
   });
 }
 

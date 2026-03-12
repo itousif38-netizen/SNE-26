@@ -368,8 +368,15 @@ function ProjectsSection({ projects, onRefresh, notify }: { projects: Project[],
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save project');
+        let errorMessage = 'Failed to save project';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       notify('Project saved successfully!');
@@ -487,8 +494,15 @@ function WorkersSection({ workers, projects, onRefresh, notify }: { workers: Wor
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to register worker');
+        let errorMessage = 'Failed to register worker';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       notify('Worker registered successfully!');
@@ -604,8 +618,15 @@ function BillingSection({ billing, projects, onRefresh, notify }: { billing: Bil
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save bill');
+        let errorMessage = 'Failed to save bill';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       notify('Bill saved successfully!');
@@ -745,8 +766,15 @@ function ClientPaymentsSection({ payments, projects, onRefresh, notify }: { paym
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to record payment');
+        let errorMessage = 'Failed to record payment';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       notify('Payment recorded successfully!');
@@ -832,8 +860,15 @@ function KharchiSection({ kharchi, projects, workers, onRefresh, notify }: { kha
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save entry');
+        let errorMessage = 'Failed to save entry';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       notify('Kharchi entry saved!');
@@ -938,8 +973,15 @@ function AdvancesSection({ advances, projects, workers, onRefresh, notify }: { a
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save advance');
+        let errorMessage = 'Failed to save advance';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       notify('Advance recorded successfully!');
@@ -1052,8 +1094,14 @@ function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Proj
 
   const fetchSummaries = async () => {
     if (!selectedProject) return;
-    const res = await fetch(`/api/worker-payments-summary?project_id=${selectedProject}&month=${month}&year=${year}`);
-    setSummaries(await res.json());
+    try {
+      const res = await fetch(`/api/worker-payments-summary?project_id=${selectedProject}&month=${month}&year=${year}`);
+      if (!res.ok) throw new Error("Failed to fetch summaries");
+      setSummaries(await res.json());
+    } catch (e) {
+      console.error("Error fetching summaries:", e);
+      notify("Failed to load payment summaries", "error");
+    }
   };
 
   useEffect(() => {
@@ -1076,8 +1124,15 @@ function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Proj
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save payment');
+        let errorMessage = 'Failed to save payment';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       notify('Payment settlement saved!');
