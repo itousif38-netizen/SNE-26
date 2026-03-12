@@ -3,7 +3,9 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import Database from "better-sqlite3";
 
-const db = new Database("construct_erp.db", { verbose: console.log });
+const dbPath = path.resolve("construct_erp.db");
+console.log(`Database path: ${dbPath}`);
+const db = new Database(dbPath, { verbose: console.log });
 
 // Initialize Database
 db.exec("PRAGMA foreign_keys = ON;");
@@ -103,7 +105,21 @@ async function startServer() {
 
   app.get("/api/test", (req, res) => {
     console.log("Test route hit");
-    res.json({ message: "Server is alive", time: new Date().toISOString() });
+    try {
+      const dbCheck = db.prepare("SELECT count(*) as count FROM projects").get() as any;
+      res.json({ 
+        message: "Server is alive", 
+        database: "Connected", 
+        projectCount: dbCheck.count,
+        time: new Date().toISOString() 
+      });
+    } catch (e: any) {
+      res.status(500).json({ 
+        message: "Server is alive but database error", 
+        error: e.message,
+        time: new Date().toISOString() 
+      });
+    }
   });
 
   // API Routes

@@ -150,25 +150,25 @@ export default function App() {
     console.log("Fetching data from server...");
     setLoading(true);
     try {
-      const [pRes, wRes, bRes, cpRes, kRes, aRes] = await Promise.all([
-        fetch('/api/projects'),
-        fetch('/api/workers'),
-        fetch('/api/billing'),
-        fetch('/api/client-payments'),
-        fetch('/api/kharchi'),
-        fetch('/api/advances')
-      ]);
+      const endpoints = [
+        { name: 'projects', url: '/api/projects' },
+        { name: 'workers', url: '/api/workers' },
+        { name: 'billing', url: '/api/billing' },
+        { name: 'client-payments', url: '/api/client-payments' },
+        { name: 'kharchi', url: '/api/kharchi' },
+        { name: 'advances', url: '/api/advances' }
+      ];
+
+      const responses = await Promise.all(endpoints.map(e => fetch(e.url)));
       
-      if (!pRes.ok || !wRes.ok || !bRes.ok || !cpRes.ok || !kRes.ok || !aRes.ok) {
-        throw new Error("One or more API calls failed");
+      for (let i = 0; i < responses.length; i++) {
+        if (!responses[i].ok) {
+          const errorText = await responses[i].text().catch(() => "No error body");
+          throw new Error(`API ${endpoints[i].name} failed (${responses[i].status}): ${errorText.slice(0, 50)}`);
+        }
       }
 
-      const p = await pRes.json();
-      const w = await wRes.json();
-      const b = await bRes.json();
-      const cp = await cpRes.json();
-      const k = await kRes.json();
-      const a = await aRes.json();
+      const [p, w, b, cp, k, a] = await Promise.all(responses.map(r => r.json()));
 
       console.log("Data fetched successfully:", { projects: p.length, workers: w.length });
       
@@ -178,9 +178,9 @@ export default function App() {
       setClientPayments(cp);
       setKharchi(k);
       setAdvances(a);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching data:", error);
-      showNotification("Failed to fetch data from server", "error");
+      showNotification(`Fetch Error: ${error.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -204,7 +204,7 @@ export default function App() {
       {/* Top Menu Bar */}
       <header className="bg-sap-header-bg border-b border-sap-border px-2 py-1 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <span className="font-bold text-sap-blue text-[11px]">ConstructERP - SAP HANA Studio</span>
+          <span className="font-bold text-sap-blue text-[11px]">ConstructERP - SAP HANA Studio (v1.0.2)</span>
           <nav className="flex gap-3 text-[10px] text-gray-600">
             <span className="cursor-pointer hover:text-black">File</span>
             <span className="cursor-pointer hover:text-black">Edit</span>
