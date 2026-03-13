@@ -100,27 +100,24 @@ interface WorkerPaymentSummary {
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-2 px-2 py-1 text-[11px] transition-colors text-left ${
+    className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all duration-200 text-left ${
       active 
-        ? 'bg-sap-light-blue text-sap-blue font-semibold' 
-        : 'text-gray-700 hover:bg-gray-200'
+        ? 'bg-sap-light-blue text-sap-blue font-bold border-r-4 border-sap-blue' 
+        : 'text-sap-text-secondary hover:bg-gray-50'
     }`}
   >
-    <Icon size={14} className="text-gray-500" />
+    <Icon size={18} className={active ? 'text-sap-blue' : 'text-sap-text-secondary'} />
     <span>{label}</span>
   </button>
 );
 
 const SectionHeader = ({ title, onAdd }: { title: string, onAdd?: () => void }) => (
-  <div className="sap-toolbar justify-between">
-    <div className="flex items-center gap-2">
-      <ChevronRight size={14} className="text-gray-400" />
-      <span className="font-bold text-gray-700 uppercase text-[10px] tracking-wider">{title}</span>
-    </div>
+  <div className="flex items-center justify-between mb-6">
+    <h1 className="text-2xl font-bold text-sap-text">{title}</h1>
     {onAdd && (
-      <button onClick={onAdd} className="sap-btn-secondary flex items-center gap-1">
-        <Plus size={12} />
-        <span>New</span>
+      <button onClick={onAdd} className="sap-btn-primary">
+        <Plus size={18} />
+        <span>Create New</span>
       </button>
     )}
   </div>
@@ -188,6 +185,7 @@ export default function App() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'dashboard': return <DashboardSection projects={projects} workers={workers} billing={billing} />;
       case 'projects': return <ProjectsSection projects={projects} onRefresh={fetchData} notify={showNotification} />;
       case 'workers': return <WorkersSection workers={workers} projects={projects} onRefresh={fetchData} notify={showNotification} />;
       case 'billing': return <BillingSection billing={billing} projects={projects} onRefresh={fetchData} notify={showNotification} />;
@@ -195,151 +193,229 @@ export default function App() {
       case 'kharchi': return <KharchiSection kharchi={kharchi} projects={projects} workers={workers} onRefresh={fetchData} notify={showNotification} />;
       case 'advances': return <AdvancesSection advances={advances} projects={projects} workers={workers} onRefresh={fetchData} notify={showNotification} />;
       case 'worker-payments': return <WorkerPaymentsSection projects={projects} onRefresh={fetchData} notify={showNotification} />;
-      default: return null;
+      default: return <DashboardSection projects={projects} workers={workers} billing={billing} />;
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-sap-gray overflow-hidden">
-      {/* Top Menu Bar */}
-      <header className="bg-sap-header-bg border-b border-sap-border px-2 py-1 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <span className="font-bold text-sap-blue text-[11px]">ConstructERP - SAP HANA Studio (v1.0.2)</span>
-          <nav className="flex gap-3 text-[10px] text-gray-600">
-            <span className="cursor-pointer hover:text-black">File</span>
-            <span className="cursor-pointer hover:text-black">Edit</span>
-            <span className="cursor-pointer hover:text-black">Navigate</span>
-            <span className="cursor-pointer hover:text-black">Project</span>
-            <span className="cursor-pointer hover:text-black">Window</span>
-            <span className="cursor-pointer hover:text-black">Help</span>
-          </nav>
+    <div className="min-h-screen bg-sap-bg">
+      {/* Shell Header */}
+      <header className="sap-shell-header">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-sap-blue rounded-md flex items-center justify-center font-bold text-white">C</div>
+            <span className="font-bold text-lg tracking-tight">ConstructERP</span>
+          </div>
+          <div className="h-6 w-px bg-white/20 hidden md:block"></div>
+          <span className="text-sm font-medium text-white/80 hidden md:block">Project Management Suite</span>
         </div>
-        <div className="flex items-center gap-2">
+        
+        <div className="flex items-center gap-4">
+          <div className="relative hidden sm:block">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50" />
+            <input 
+              placeholder="Search apps, projects..." 
+              className="bg-white/10 border border-white/20 rounded-md pl-10 pr-4 py-1.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:bg-white/20 w-64 transition-all" 
+            />
+          </div>
           <button 
             onClick={async () => {
               try {
                 const res = await fetch('/api/test');
                 const data = await res.json();
-                showNotification(`Connection OK: ${data.message}`);
+                showNotification(`System Status: ${data.message}`);
               } catch (e) {
-                showNotification("Connection Failed", "error");
+                showNotification("System Offline", "error");
               }
             }}
-            className="text-[10px] bg-sap-blue text-white px-2 py-0.5 rounded hover:bg-opacity-80"
+            className="sap-btn-secondary !bg-transparent !text-white !border-white/30 hover:!bg-white/10"
           >
-            Test Connection
+            Check Status
           </button>
-          <div className="bg-white border border-sap-border px-2 py-0.5 flex items-center gap-2">
-            <Search size={12} className="text-gray-400" />
-            <input placeholder="Quick Access" className="outline-none text-[10px] w-32" />
-          </div>
+          <div className="w-8 h-8 bg-sap-accent rounded-full flex items-center justify-center font-bold text-white text-xs">IT</div>
         </div>
       </header>
 
-      {/* Toolbar */}
-      <div className="sap-toolbar">
-        <button className="p-1 hover:bg-gray-200 rounded"><Plus size={14} /></button>
-        <button className="p-1 hover:bg-gray-200 rounded text-sap-blue"><LayoutDashboard size={14} /></button>
-        <div className="w-px h-4 bg-sap-border mx-1"></div>
-        <button className="p-1 hover:bg-gray-200 rounded"><Search size={14} /></button>
-        <button onClick={fetchData} className="p-1 hover:bg-gray-200 rounded"><ChevronRight size={14} className="rotate-90" /></button>
-      </div>
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Systems View (Sidebar) */}
-        <aside className="w-60 bg-white border-r border-sap-border flex flex-col">
-          <div className="bg-sap-toolbar-bg border-b border-sap-border px-2 py-1 flex items-center justify-between">
-            <span className="font-bold text-[10px] text-gray-600">Systems</span>
-            <div className="flex gap-1">
-              <button className="p-0.5 hover:bg-gray-200"><Plus size={10} /></button>
+      <div className="flex">
+        {/* Navigation Sidebar */}
+        <aside className="sap-sidebar">
+          <div className="py-4">
+            <div className="px-4 mb-2">
+              <span className="text-[10px] font-bold text-sap-text-secondary uppercase tracking-widest">Main Navigation</span>
             </div>
-          </div>
-          <div className="flex-1 overflow-y-auto py-1">
-            <div className="px-2 py-1 flex items-center gap-1 text-[11px] font-bold text-gray-700">
-              <ChevronRight size={12} className="rotate-90" />
-              <span>ConstructERP (SYSTEM)</span>
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+            <SidebarItem icon={Briefcase} label="Projects" active={activeTab === 'projects'} onClick={() => setActiveTab('projects')} />
+            <SidebarItem icon={Users} label="Workers" active={activeTab === 'workers'} onClick={() => setActiveTab('workers')} />
+            <SidebarItem icon={Receipt} label="Billing" active={activeTab === 'billing'} onClick={() => setActiveTab('billing')} />
+            
+            <div className="px-4 mt-6 mb-2">
+              <span className="text-[10px] font-bold text-sap-text-secondary uppercase tracking-widest">Financials</span>
             </div>
-            <div className="pl-4">
-              <SidebarItem icon={Briefcase} label="Projects" active={activeTab === 'projects'} onClick={() => setActiveTab('projects')} />
-              <SidebarItem icon={Users} label="Workers Management" active={activeTab === 'workers'} onClick={() => setActiveTab('workers')} />
-              <SidebarItem icon={Receipt} label="Billing Management" active={activeTab === 'billing'} onClick={() => setActiveTab('billing')} />
-              <SidebarItem icon={CreditCard} label="Client Payment" active={activeTab === 'client-payments'} onClick={() => setActiveTab('client-payments')} />
-              <SidebarItem icon={Wallet} label="Kharchi" active={activeTab === 'kharchi'} onClick={() => setActiveTab('kharchi')} />
-              <SidebarItem icon={HandCoins} label="Advance" active={activeTab === 'advances'} onClick={() => setActiveTab('advances')} />
-              <SidebarItem icon={Banknote} label="Workers Payment" active={activeTab === 'worker-payments'} onClick={() => setActiveTab('worker-payments')} />
-            </div>
+            <SidebarItem icon={CreditCard} label="Client Payments" active={activeTab === 'client-payments'} onClick={() => setActiveTab('client-payments')} />
+            <SidebarItem icon={Wallet} label="Kharchi" active={activeTab === 'kharchi'} onClick={() => setActiveTab('kharchi')} />
+            <SidebarItem icon={HandCoins} label="Advances" active={activeTab === 'advances'} onClick={() => setActiveTab('advances')} />
+            <SidebarItem icon={Banknote} label="Worker Settlements" active={activeTab === 'worker-payments'} onClick={() => setActiveTab('worker-payments')} />
           </div>
         </aside>
 
-        {/* Editor Area (Main Content) */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="bg-sap-header-bg border-b border-sap-border flex">
-            <div className={`sap-tab ${activeTab === 'projects' ? 'sap-tab-active' : ''}`} onClick={() => setActiveTab('projects')}>Overview</div>
-            <div className="sap-tab">Landscape</div>
-            <div className="sap-tab">Alerts</div>
-            <div className="sap-tab">Performance</div>
-            <div className="sap-tab">Configuration</div>
-          </div>
-          
-      <main className="flex-1 overflow-y-auto p-4 bg-white relative">
-        <AnimatePresence>
-          {notification && (
-            <motion.div
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              className={`fixed top-10 left-1/2 -translate-x-1/2 z-[9999] p-4 rounded-lg shadow-2xl border-2 ${
-                notification.type === 'success' ? 'bg-green-100 border-green-500 text-green-900' : 'bg-red-100 border-red-500 text-red-900'
-              } text-[13px] font-bold flex items-center gap-3 min-w-[300px] justify-center`}
-            >
-              <Info size={18} />
-              {notification.message}
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence mode="wait">
+        {/* Main Content Area */}
+        <main className="sap-content">
+          <AnimatePresence>
+            {notification && (
               <motion.div
-                key={activeTab}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className={`fixed top-16 right-6 z-[100] p-4 rounded-lg shadow-lg border-l-4 ${
+                  notification.type === 'success' ? 'bg-white border-green-500 text-sap-text' : 'bg-white border-red-500 text-sap-text'
+                } flex items-center gap-3 min-w-[300px]`}
               >
-                {renderContent()}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${notification.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                  <Info size={18} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm">{notification.type === 'success' ? 'Success' : 'Error'}</p>
+                  <p className="text-xs text-sap-text-secondary">{notification.message}</p>
+                </div>
               </motion.div>
-            </AnimatePresence>
-          </main>
+            )}
+          </AnimatePresence>
 
-          {/* Bottom Panel (Other Views) */}
-          <div className="h-40 bg-white border-t border-sap-border flex flex-col">
-            <div className="bg-sap-toolbar-bg border-b border-sap-border px-2 py-1 flex items-center gap-4">
-              <span className="text-[10px] font-bold border-b-2 border-sap-blue pb-1">Properties</span>
-              <span className="text-[10px] font-bold text-gray-500 pb-1">Error Log</span>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {renderContent()}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Footer Info */}
+          <footer className="mt-12 pt-6 border-t border-sap-border flex justify-between items-center text-xs text-sap-text-secondary">
+            <div className="flex gap-6">
+              <span>System: ConstructERP Production</span>
+              <span>Environment: SAP S/4HANA Cloud</span>
+              <span>Last Sync: {new Date().toLocaleTimeString()}</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              <table className="sap-table">
-                <thead>
-                  <tr>
-                    <th>Message</th>
-                    <th>Plug-in</th>
-                    <th>Date</th>
+            <div>
+              <span>© 2026 ConstructERP Solutions</span>
+            </div>
+          </footer>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// --- Sub-sections ---
+
+function DashboardSection({ projects, workers, billing }: { projects: Project[], workers: Worker[], billing: Billing[] }) {
+  const totalBilling = billing.reduce((sum, b) => sum + (b.amount || 0), 0);
+  
+  return (
+    <div className="space-y-6">
+      <SectionHeader title="Executive Overview" />
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="sap-card p-6 flex items-center gap-4 hover:shadow-md transition-shadow cursor-default">
+          <div className="w-12 h-12 bg-blue-50 text-sap-blue rounded-lg flex items-center justify-center">
+            <Briefcase size={24} />
+          </div>
+          <div>
+            <p className="sap-label">Active Projects</p>
+            <p className="text-3xl font-bold text-sap-text">{projects.length}</p>
+          </div>
+        </div>
+        
+        <div className="sap-card p-6 flex items-center gap-4 hover:shadow-md transition-shadow cursor-default">
+          <div className="w-12 h-12 bg-green-50 text-green-600 rounded-lg flex items-center justify-center">
+            <Users size={24} />
+          </div>
+          <div>
+            <p className="sap-label">Total Workforce</p>
+            <p className="text-3xl font-bold text-sap-text">{workers.length}</p>
+          </div>
+        </div>
+
+        <div className="sap-card p-6 flex items-center gap-4 hover:shadow-md transition-shadow cursor-default">
+          <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
+            <DollarSign size={24} />
+          </div>
+          <div>
+            <p className="sap-label">Total Billing</p>
+            <p className="text-3xl font-bold text-sap-text">₹{totalBilling.toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="sap-card">
+          <div className="sap-card-header">
+            <h3 className="sap-card-title">Recent Projects</h3>
+            <button className="text-sap-blue text-xs font-bold hover:underline">View All</button>
+          </div>
+          <div className="sap-table-container">
+            <table className="sap-table">
+              <thead>
+                <tr>
+                  <th>Project Name</th>
+                  <th>Budget</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.slice(0, 5).map(p => (
+                  <tr key={p.id}>
+                    <td className="font-bold text-sap-blue">{p.name}</td>
+                    <td className="font-mono">₹{p.budget.toLocaleString()}</td>
+                    <td><span className="sap-badge sap-badge-green">Active</span></td>
                   </tr>
-                </thead>
-                <tbody>
+                ))}
+                {projects.length === 0 && (
                   <tr>
-                    <td className="flex items-center gap-1"><Info size={10} className="text-blue-500" /> System connected successfully</td>
-                    <td>org.construct.erp</td>
-                    <td>{new Date().toLocaleString()}</td>
+                    <td colSpan={3} className="text-center py-8 text-sap-text-secondary italic">No projects found</td>
                   </tr>
-                  {activeTab === 'projects' && (
-                    <tr>
-                      <td className="flex items-center gap-1"><Info size={10} className="text-blue-500" /> Loaded {projects.length} projects</td>
-                      <td>org.construct.erp.projects</td>
-                      <td>{new Date().toLocaleString()}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="sap-card">
+          <div className="sap-card-header">
+            <h3 className="sap-card-title">System Health</h3>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded border border-sap-border">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="text-sm font-medium">Database Connection</span>
+              </div>
+              <span className="sap-badge sap-badge-green">Stable</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded border border-sap-border">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="text-sm font-medium">API Gateway</span>
+              </div>
+              <span className="sap-badge sap-badge-green">Online</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded border border-sap-border">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <span className="text-sm font-medium">Storage Service</span>
+              </div>
+              <span className="sap-badge sap-badge-blue">92% Free</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded border border-sap-border">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-sap-blue"></div>
+                <span className="text-sm font-medium">Last Backup</span>
+              </div>
+              <span className="text-xs text-sap-text-secondary">Today, 04:00 AM</span>
             </div>
           </div>
         </div>
@@ -348,15 +424,12 @@ export default function App() {
   );
 }
 
-// --- Sub-sections ---
-
 function ProjectsSection({ projects, onRefresh, notify }: { projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', start_date: '', address: '', budget: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Submitting project:", formData);
     try {
       const response = await fetch('/api/projects', {
         method: 'POST',
@@ -368,12 +441,12 @@ function ProjectsSection({ projects, onRefresh, notify }: { projects: Project[],
       });
       
       if (!response.ok) {
+        const text = await response.text();
         let errorMessage = 'Failed to save project';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          const text = await response.text();
           errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -383,99 +456,92 @@ function ProjectsSection({ projects, onRefresh, notify }: { projects: Project[],
       setShowForm(false);
       onRefresh();
     } catch (error: any) {
-      console.error("Project save error:", error);
       notify(`Error: ${error.message}`, 'error');
     }
   };
 
   return (
-    <div className="sap-panel p-4">
-      <SectionHeader title="General Information" onAdd={() => setShowForm(true)} />
+    <div className="space-y-6">
+      <SectionHeader title="Project Portfolio" onAdd={() => setShowForm(true)} />
       
       {showForm && (
-        <div className="mb-4 p-3 bg-sap-toolbar-bg border border-sap-border">
-          <h3 className="font-bold mb-2 text-sap-blue text-[11px]">Add New Project</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3">
+        <div className="sap-card p-6 bg-gray-50/30">
+          <h3 className="text-lg font-bold mb-4 text-sap-blue">Create New Project</h3>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Project Name</label>
-              <input className="sap-input" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <label className="sap-label">Project Name</label>
+              <input className="sap-input" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Skyline Residency" />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Start Date</label>
+              <label className="sap-label">Start Date</label>
               <input type="date" className="sap-input" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} />
             </div>
-            <div className="col-span-2">
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Address</label>
-              <input className="sap-input" required value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+            <div className="md:col-span-2">
+              <label className="sap-label">Site Address</label>
+              <input className="sap-input" required value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Full physical address" />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Budget</label>
-              <input type="number" className="sap-input" required value={formData.budget} onChange={e => setFormData({...formData, budget: e.target.value})} />
+              <label className="sap-label">Total Budget (INR)</label>
+              <input type="number" className="sap-input" required value={formData.budget} onChange={e => setFormData({...formData, budget: e.target.value})} placeholder="0.00" />
             </div>
-            <div className="flex items-end">
-              <button type="submit" className="sap-btn-primary w-full">Save Project</button>
+            <div className="flex items-end gap-2">
+              <button type="submit" className="sap-btn-primary flex-1">Save Project</button>
+              <button type="button" onClick={() => setShowForm(false)} className="sap-btn-secondary">Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-8 mb-6">
-        <div className="space-y-4">
-          <h4 className="text-[10px] font-bold text-gray-500 border-b border-sap-border pb-1">Operational Status</h4>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-            <span className="text-[11px]">All projects active</span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 sap-card">
+          <div className="sap-card-header">
+            <h3 className="sap-card-title">Active Projects</h3>
           </div>
-          <div className="text-[11px] text-gray-600">
-            <div className="flex justify-between py-1 border-b border-gray-100">
-              <span>Total Projects:</span>
-              <span className="font-bold">{projects.length}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-gray-100">
-              <span>Total Budget:</span>
-              <span className="font-bold">₹{projects.reduce((sum, p) => sum + p.budget, 0).toLocaleString()}</span>
-            </div>
+          <div className="sap-table-container">
+            <table className="sap-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Project Name</th>
+                  <th>Start Date</th>
+                  <th>Budget</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.map(p => (
+                  <tr key={p.id}>
+                    <td className="text-sap-text-secondary">#{p.id}</td>
+                    <td className="font-bold text-sap-blue">{p.name}</td>
+                    <td>{new Date(p.start_date).toLocaleDateString()}</td>
+                    <td className="font-mono">₹{p.budget?.toLocaleString()}</td>
+                    <td><span className="sap-badge sap-badge-green">On Track</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-        
-        <div className="space-y-4">
-          <h4 className="text-[10px] font-bold text-gray-500 border-b border-sap-border pb-1">Budget Allocation</h4>
-          {projects.slice(0, 3).map(p => (
-            <div key={p.id} className="space-y-1">
-              <div className="flex justify-between text-[10px]">
-                <span>{p.name}</span>
-                <span>₹{p.budget.toLocaleString()}</span>
+
+        <div className="sap-card p-6 bg-sap-blue text-white flex flex-col justify-between">
+          <div>
+            <h3 className="text-white/70 text-xs font-bold uppercase tracking-widest mb-4">Portfolio Summary</h3>
+            <div className="space-y-6">
+              <div>
+                <p className="text-white/60 text-xs uppercase">Total Investment</p>
+                <p className="text-3xl font-bold">₹{projects.reduce((sum, p) => sum + (p.budget || 0), 0).toLocaleString()}</p>
               </div>
-              <div className="w-full bg-gray-200 h-2">
-                <div className="bg-sap-blue h-full" style={{ width: `${Math.min(100, (p.budget / 1000000) * 100)}%` }}></div>
+              <div>
+                <p className="text-white/60 text-xs uppercase">Project Count</p>
+                <p className="text-3xl font-bold">{projects.length}</p>
               </div>
             </div>
-          ))}
+          </div>
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <p className="text-xs text-white/50 italic">All financial data is synchronized with the central ledger.</p>
+          </div>
         </div>
       </div>
-
-      <table className="sap-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Project Name</th>
-            <th>Start Date</th>
-            <th>Address</th>
-            <th>Budget</th>
-          </tr>
-        </thead>
-        <tbody>
-          {projects.map(p => (
-            <tr key={p.id}>
-              <td>{p.id}</td>
-              <td className="font-semibold text-sap-blue">{p.name}</td>
-              <td>{p.start_date}</td>
-              <td>{p.address}</td>
-              <td className="font-mono">₹{p.budget?.toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
@@ -494,12 +560,12 @@ function WorkersSection({ workers, projects, onRefresh, notify }: { workers: Wor
       });
 
       if (!response.ok) {
+        const text = await response.text();
         let errorMessage = 'Failed to register worker';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          const text = await response.text();
           errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -518,84 +584,94 @@ function WorkersSection({ workers, projects, onRefresh, notify }: { workers: Wor
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-2">
+    <div className="space-y-6">
+      <SectionHeader title="Workforce Management" onAdd={() => setShowForm(true)} />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {projects.map(p => (
-          <div key={p.id} className="sap-panel p-2 flex items-center justify-between">
+          <div key={p.id} className="sap-card p-4 flex items-center justify-between">
             <div>
-              <p className="text-[9px] font-bold uppercase text-gray-500">{p.name}</p>
-              <p className="text-lg font-black text-sap-blue">{getWorkerCountByProject(p.id)}</p>
+              <p className="sap-label">{p.name}</p>
+              <p className="text-2xl font-bold text-sap-blue">{getWorkerCountByProject(p.id)}</p>
+              <p className="text-[10px] text-sap-text-secondary uppercase">Personnel</p>
             </div>
-            <Users className="text-sap-light-blue opacity-50" size={24} />
+            <div className="w-10 h-10 bg-sap-light-blue rounded-full flex items-center justify-center text-sap-blue">
+              <Users size={20} />
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="sap-panel p-4">
-        <SectionHeader title="Worker Administration" onAdd={() => setShowForm(true)} />
-
+      <div className="sap-card">
+        <div className="sap-card-header">
+          <h3 className="sap-card-title">Employee Registry</h3>
+        </div>
+        
         {showForm && (
-          <div className="mb-4 p-3 bg-sap-toolbar-bg border border-sap-border">
-            <h3 className="font-bold mb-2 text-sap-blue text-[11px]">Register New Worker</h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-3">
+          <div className="p-6 bg-gray-50/50 border-b border-sap-border">
+            <h3 className="text-lg font-bold mb-4 text-sap-blue">Register New Personnel</h3>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Worker ID</label>
-                <input className="sap-input" required value={formData.worker_id} onChange={e => setFormData({...formData, worker_id: e.target.value})} />
+                <label className="sap-label">Worker ID</label>
+                <input className="sap-input" required value={formData.worker_id} onChange={e => setFormData({...formData, worker_id: e.target.value})} placeholder="e.g. EMP001" />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Name</label>
-                <input className="sap-input" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <label className="sap-label">Full Name</label>
+                <input className="sap-input" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Legal Name" />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Project</label>
+                <label className="sap-label">Assign Project</label>
                 <select className="sap-input" required value={formData.project_id} onChange={e => setFormData({...formData, project_id: e.target.value})}>
                   <option value="">Select Project</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Designation</label>
-                <input className="sap-input" required value={formData.designation} onChange={e => setFormData({...formData, designation: e.target.value})} />
+                <label className="sap-label">Designation</label>
+                <input className="sap-input" required value={formData.designation} onChange={e => setFormData({...formData, designation: e.target.value})} placeholder="Role" />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Joining Date</label>
+                <label className="sap-label">Joining Date</label>
                 <input type="date" className="sap-input" required value={formData.joining_date} onChange={e => setFormData({...formData, joining_date: e.target.value})} />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Serial No</label>
-                <input className="sap-input" required value={formData.serial_no} onChange={e => setFormData({...formData, serial_no: e.target.value})} />
+                <label className="sap-label">Serial Number</label>
+                <input className="sap-input" required value={formData.serial_no} onChange={e => setFormData({...formData, serial_no: e.target.value})} placeholder="Internal S.No" />
               </div>
-              <div className="col-span-3">
-                <button type="submit" className="sap-btn-primary w-full">Register Worker</button>
+              <div className="md:col-span-3 flex gap-2">
+                <button type="submit" className="sap-btn-primary flex-1">Confirm Registration</button>
+                <button type="button" onClick={() => setShowForm(false)} className="sap-btn-secondary">Cancel</button>
               </div>
             </form>
           </div>
         )}
 
-        <table className="sap-table">
-          <thead>
-            <tr>
-              <th>S.No</th>
-              <th>Worker ID</th>
-              <th>Name</th>
-              <th>Project</th>
-              <th>Designation</th>
-              <th>Joining Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {workers.map(w => (
-              <tr key={w.id}>
-                <td>{w.serial_no}</td>
-                <td className="font-mono text-sap-blue">{w.worker_id}</td>
-                <td className="font-semibold">{w.name}</td>
-                <td>{w.project_name}</td>
-                <td>{w.designation}</td>
-                <td>{w.joining_date}</td>
+        <div className="sap-table-container">
+          <table className="sap-table">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Worker ID</th>
+                <th>Name</th>
+                <th>Project Assignment</th>
+                <th>Designation</th>
+                <th>Joining Date</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {workers.map(w => (
+                <tr key={w.id}>
+                  <td className="text-sap-text-secondary">{w.serial_no}</td>
+                  <td className="font-mono font-bold text-sap-blue">{w.worker_id}</td>
+                  <td className="font-medium">{w.name}</td>
+                  <td><span className="sap-badge sap-badge-blue">{w.project_name}</span></td>
+                  <td>{w.designation}</td>
+                  <td>{new Date(w.joining_date).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -618,12 +694,12 @@ function BillingSection({ billing, projects, onRefresh, notify }: { billing: Bil
       });
 
       if (!response.ok) {
+        const text = await response.text();
         let errorMessage = 'Failed to save bill';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          const text = await response.text();
           errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -647,100 +723,112 @@ function BillingSection({ billing, projects, onRefresh, notify }: { billing: Bil
   }, {});
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="sap-panel p-4 bg-sap-blue text-white flex justify-between items-center">
+    <div className="space-y-6">
+      <SectionHeader title="Billing & Invoicing" onAdd={() => setShowForm(true)} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="sap-card p-6 bg-sap-blue text-white flex justify-between items-center">
           <div>
-            <p className="text-[10px] font-bold uppercase opacity-70">Total Billing Value (All Sites)</p>
-            <p className="text-2xl font-black">₹{totalBilling.toLocaleString()}</p>
+            <p className="text-white/60 text-xs font-bold uppercase tracking-widest">Total Billing Value</p>
+            <p className="text-3xl font-bold mt-1">₹{totalBilling.toLocaleString()}</p>
+            <p className="text-[10px] text-white/40 mt-2">Cumulative across all active sites</p>
           </div>
-          <Receipt size={32} className="opacity-20" />
+          <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+            <Receipt size={28} className="text-white/80" />
+          </div>
         </div>
 
-        <div className="sap-panel p-4 overflow-y-auto max-h-24">
-          <h4 className="text-[9px] font-bold uppercase text-gray-500 mb-1">Monthly Summary</h4>
-          <div className="space-y-1">
-            {Object.entries(monthlySummary).sort().map(([m, val]: [any, any]) => (
-              <div key={m} className="flex justify-between text-[10px] border-b border-gray-100 pb-0.5">
-                <span className="font-semibold">{m}</span>
-                <span className="font-mono">₹{val.toLocaleString()}</span>
+        <div className="lg:col-span-2 sap-card">
+          <div className="sap-card-header">
+            <h3 className="sap-card-title">Monthly Revenue Summary</h3>
+          </div>
+          <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(monthlySummary).sort().reverse().slice(0, 4).map(([m, val]: [any, any]) => (
+              <div key={m} className="p-3 bg-gray-50 rounded border border-sap-border">
+                <p className="text-[10px] font-bold text-sap-text-secondary uppercase">{m}</p>
+                <p className="text-lg font-bold text-sap-blue">₹{val.toLocaleString()}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="sap-panel p-4">
-        <SectionHeader title="Billing Administration" onAdd={() => setShowForm(true)} />
+      <div className="sap-card">
+        <div className="sap-card-header">
+          <h3 className="sap-card-title">Billing Ledger</h3>
+        </div>
 
         {showForm && (
-          <div className="mb-4 p-3 bg-sap-toolbar-bg border border-sap-border">
-            <h3 className="font-bold mb-2 text-sap-blue text-[11px]">Enter New Bill</h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-4 gap-3">
+          <div className="p-6 bg-gray-50/50 border-b border-sap-border">
+            <h3 className="text-lg font-bold mb-4 text-sap-blue">Record New Invoice</h3>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">SR No</label>
+                <label className="sap-label">SR No</label>
                 <input className="sap-input" required value={formData.sr_no} onChange={e => setFormData({...formData, sr_no: e.target.value})} />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Project</label>
+                <label className="sap-label">Project</label>
                 <select className="sap-input" required value={formData.project_id} onChange={e => setFormData({...formData, project_id: e.target.value})}>
                   <option value="">Select Project</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Bill No</label>
+                <label className="sap-label">Bill Number</label>
                 <input className="sap-input" required value={formData.bill_no} onChange={e => setFormData({...formData, bill_no: e.target.value})} />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Work Nature</label>
+                <label className="sap-label">Nature of Work</label>
                 <input className="sap-input" required value={formData.work_nature} onChange={e => setFormData({...formData, work_nature: e.target.value})} />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Amount</label>
+                <label className="sap-label">Amount (INR)</label>
                 <input type="number" className="sap-input" required value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Billing Month</label>
+                <label className="sap-label">Billing Month</label>
                 <input type="month" className="sap-input" required value={formData.month} onChange={e => setFormData({...formData, month: e.target.value})} />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-gray-600 mb-1 block">Certify Date</label>
+                <label className="sap-label">Certification Date</label>
                 <input type="date" className="sap-input" required value={formData.certify_date} onChange={e => setFormData({...formData, certify_date: e.target.value})} />
               </div>
-              <div className="flex items-end">
-                <button type="submit" className="sap-btn-primary w-full">Save Bill</button>
+              <div className="flex items-end gap-2">
+                <button type="submit" className="sap-btn-primary flex-1">Save Invoice</button>
+                <button type="button" onClick={() => setShowForm(false)} className="sap-btn-secondary">Cancel</button>
               </div>
             </form>
           </div>
         )}
 
-        <table className="sap-table">
-          <thead>
-            <tr>
-              <th>SR No</th>
-              <th>Project</th>
-              <th>Bill No</th>
-              <th>Nature</th>
-              <th>Amount</th>
-              <th>Month</th>
-              <th>Certify Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {billing.map(b => (
-              <tr key={b.id}>
-                <td>{b.sr_no}</td>
-                <td className="font-semibold">{b.project_name}</td>
-                <td>{b.bill_no}</td>
-                <td>{b.work_nature}</td>
-                <td className="font-mono">₹{b.amount.toLocaleString()}</td>
-                <td>{b.month}</td>
-                <td>{b.certify_date}</td>
+        <div className="sap-table-container">
+          <table className="sap-table">
+            <thead>
+              <tr>
+                <th>SR No</th>
+                <th>Project</th>
+                <th>Bill No</th>
+                <th>Nature</th>
+                <th>Amount</th>
+                <th>Month</th>
+                <th>Certify Date</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {billing.map(b => (
+                <tr key={b.id}>
+                  <td className="text-sap-text-secondary">{b.sr_no}</td>
+                  <td className="font-bold text-sap-blue">{b.project_name}</td>
+                  <td>{b.bill_no}</td>
+                  <td>{b.work_nature}</td>
+                  <td className="font-mono font-bold">₹{b.amount.toLocaleString()}</td>
+                  <td><span className="sap-badge sap-badge-blue">{b.month}</span></td>
+                  <td>{new Date(b.certify_date).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -766,12 +854,12 @@ function ClientPaymentsSection({ payments, projects, onRefresh, notify }: { paym
       });
 
       if (!response.ok) {
+        const text = await response.text();
         let errorMessage = 'Failed to record payment';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          const text = await response.text();
           errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -786,55 +874,68 @@ function ClientPaymentsSection({ payments, projects, onRefresh, notify }: { paym
   };
 
   return (
-    <div className="sap-panel p-4">
+    <div className="space-y-6">
       <SectionHeader title="Financial Settlement" onAdd={() => setShowForm(true)} />
 
       {showForm && (
-        <div className="mb-4 p-3 bg-sap-toolbar-bg border border-sap-border">
-          <h3 className="font-bold mb-2 text-sap-blue text-[11px]">Record Client Payment</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-3">
+        <div className="sap-card p-6 bg-gray-50/50">
+          <h3 className="text-lg font-bold mb-4 text-sap-blue">Record Client Payment</h3>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Project</label>
+              <label className="sap-label">Project</label>
               <select className="sap-input" required value={formData.project_id} onChange={e => setFormData({...formData, project_id: e.target.value})}>
                 <option value="">Select Project</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Total Bill Value</label>
+              <label className="sap-label">Total Bill Value</label>
               <input type="number" className="sap-input" required value={formData.bill_value} onChange={e => setFormData({...formData, bill_value: e.target.value})} />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Amount Received</label>
+              <label className="sap-label">Amount Received</label>
               <input type="number" className="sap-input" required value={formData.amount_received} onChange={e => setFormData({...formData, amount_received: e.target.value})} />
             </div>
-            <div className="col-span-3">
-              <button type="submit" className="sap-btn-primary w-full">Record Payment</button>
+            <div className="md:col-span-3 flex gap-2">
+              <button type="submit" className="sap-btn-primary flex-1">Record Payment</button>
+              <button type="button" onClick={() => setShowForm(false)} className="sap-btn-secondary">Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      <table className="sap-table">
-        <thead>
-          <tr>
-            <th>Project</th>
-            <th>Total Bill Value</th>
-            <th>Amount Received</th>
-            <th>Balance Outstanding</th>
-          </tr>
-        </thead>
-        <tbody>
-          {payments.map(p => (
-            <tr key={p.id}>
-              <td className="font-semibold">{p.project_name}</td>
-              <td className="font-mono">₹{p.bill_value.toLocaleString()}</td>
-              <td className="font-mono text-green-700">₹{p.amount_received.toLocaleString()}</td>
-              <td className="font-mono text-red-700 font-bold">₹{p.balance.toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="sap-card">
+        <div className="sap-card-header">
+          <h3 className="sap-card-title">Payment Ledger</h3>
+        </div>
+        <div className="sap-table-container">
+          <table className="sap-table">
+            <thead>
+              <tr>
+                <th>Project</th>
+                <th>Total Bill Value</th>
+                <th>Amount Received</th>
+                <th>Balance Outstanding</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map(p => (
+                <tr key={p.id}>
+                  <td className="font-bold text-sap-blue">{p.project_name}</td>
+                  <td className="font-mono">₹{p.bill_value.toLocaleString()}</td>
+                  <td className="font-mono text-green-700 font-bold">₹{p.amount_received.toLocaleString()}</td>
+                  <td className="font-mono text-red-700 font-bold">
+                    <div className="flex items-center gap-2">
+                      ₹{p.balance.toLocaleString()}
+                      {p.balance > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -860,12 +961,12 @@ function KharchiSection({ kharchi, projects, workers, onRefresh, notify }: { kha
       });
 
       if (!response.ok) {
+        const text = await response.text();
         let errorMessage = 'Failed to save entry';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          const text = await response.text();
           errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -880,74 +981,84 @@ function KharchiSection({ kharchi, projects, workers, onRefresh, notify }: { kha
   };
 
   return (
-    <div className="sap-panel p-4">
+    <div className="space-y-6">
       <SectionHeader title="Pocket Money Tracking" />
       
-      <div className="mb-4 flex gap-3 items-end">
-        <div className="w-48">
-          <label className="text-[10px] font-bold text-gray-600 mb-1 block">Target Project</label>
-          <select className="sap-input" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
-            <option value="">All Projects</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+      <div className="sap-card p-6">
+        <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex-1">
+            <label className="sap-label">Target Project Filter</label>
+            <select className="sap-input" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+              <option value="">All Projects</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <button 
+            disabled={!selectedProject}
+            onClick={() => setShowForm(true)} 
+            className="sap-btn-primary disabled:opacity-50 h-[36px]"
+          >
+            Add Sunday Entry
+          </button>
         </div>
-        <button 
-          disabled={!selectedProject}
-          onClick={() => setShowForm(true)} 
-          className="sap-btn-primary disabled:opacity-50"
-        >
-          Add Sunday Entry
-        </button>
       </div>
 
       {showForm && (
-        <div className="mb-4 p-3 bg-sap-toolbar-bg border border-sap-border">
-          <h3 className="font-bold mb-2 text-sap-blue text-[11px]">New Kharchi Entry</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-3">
+        <div className="sap-card p-6 bg-gray-50/50">
+          <h3 className="text-lg font-bold mb-4 text-sap-blue">New Kharchi Entry</h3>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Worker</label>
+              <label className="sap-label">Worker</label>
               <select className="sap-input" required value={formData.worker_id} onChange={e => setFormData({...formData, worker_id: e.target.value})}>
                 <option value="">Select Worker</option>
                 {filteredWorkers.map(w => <option key={w.worker_id} value={w.worker_id}>{w.name} ({w.worker_id})</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Amount</label>
+              <label className="sap-label">Amount (INR)</label>
               <input type="number" className="sap-input" required value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Sunday Date</label>
+              <label className="sap-label">Sunday Date</label>
               <input type="date" className="sap-input" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
             </div>
-            <div className="col-span-3">
-              <button type="submit" className="sap-btn-primary w-full">Save Entry</button>
+            <div className="md:col-span-3 flex gap-2">
+              <button type="submit" className="sap-btn-primary flex-1">Save Entry</button>
+              <button type="button" onClick={() => setShowForm(false)} className="sap-btn-secondary">Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      <table className="sap-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>ID No</th>
-            <th>Worker Name</th>
-            <th>Project</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {kharchi.filter(k => !selectedProject || k.project_id === Number(selectedProject)).map(k => (
-            <tr key={k.id}>
-              <td>{k.date}</td>
-              <td className="font-mono">{k.worker_id}</td>
-              <td className="font-semibold">{k.worker_name}</td>
-              <td>{k.project_name}</td>
-              <td className="font-mono">₹{k.amount.toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="sap-card">
+        <div className="sap-card-header">
+          <h3 className="sap-card-title">Kharchi History</h3>
+        </div>
+        <div className="sap-table-container">
+          <table className="sap-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>ID No</th>
+                <th>Worker Name</th>
+                <th>Project</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {kharchi.filter(k => !selectedProject || k.project_id === Number(selectedProject)).map(k => (
+                <tr key={k.id}>
+                  <td>{new Date(k.date).toLocaleDateString()}</td>
+                  <td className="font-mono font-bold text-sap-blue">{k.worker_id}</td>
+                  <td className="font-medium">{k.worker_name}</td>
+                  <td><span className="sap-badge sap-badge-blue">{k.project_name}</span></td>
+                  <td className="font-mono font-bold">₹{k.amount.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -973,12 +1084,12 @@ function AdvancesSection({ advances, projects, workers, onRefresh, notify }: { a
       });
 
       if (!response.ok) {
+        const text = await response.text();
         let errorMessage = 'Failed to save advance';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          const text = await response.text();
           errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -997,89 +1108,101 @@ function AdvancesSection({ advances, projects, workers, onRefresh, notify }: { a
     .reduce((sum, a) => sum + a.amount, 0);
 
   return (
-    <div className="sap-panel p-4">
+    <div className="space-y-6">
       <SectionHeader title="Advance Administration" />
       
-      <div className="mb-4 flex justify-between items-end">
-        <div className="w-48">
-          <label className="text-[10px] font-bold text-gray-600 mb-1 block">Target Project</label>
-          <select className="sap-input" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
-            <option value="">All Projects</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-        <div className="text-right">
-          <p className="text-[9px] font-bold uppercase text-gray-500">Project Advance Total</p>
-          <p className="text-lg font-black text-sap-blue">₹{totalAdvance.toLocaleString()}</p>
+      <div className="sap-card p-6">
+        <div className="flex flex-col md:flex-row justify-between items-end gap-4">
+          <div className="flex-1 w-full">
+            <label className="sap-label">Project Filter</label>
+            <select className="sap-input" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+              <option value="">All Projects</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="text-right bg-sap-blue/5 p-3 rounded border border-sap-blue/10 min-w-[200px]">
+            <p className="text-[10px] font-bold uppercase text-sap-text-secondary">Project Advance Total</p>
+            <p className="text-2xl font-bold text-sap-blue">₹{totalAdvance.toLocaleString()}</p>
+          </div>
         </div>
       </div>
 
-      <button 
-        disabled={!selectedProject}
-        onClick={() => setShowForm(true)} 
-        className="sap-btn-primary mb-4 disabled:opacity-50"
-      >
-        Record New Advance
-      </button>
+      <div className="flex justify-start">
+        <button 
+          disabled={!selectedProject}
+          onClick={() => setShowForm(true)} 
+          className="sap-btn-primary disabled:opacity-50"
+        >
+          Record New Advance
+        </button>
+      </div>
 
       {showForm && (
-        <div className="mb-4 p-3 bg-sap-toolbar-bg border border-sap-border">
-          <h3 className="font-bold mb-2 text-sap-blue text-[11px]">New Advance Entry</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-3">
+        <div className="sap-card p-6 bg-gray-50/50">
+          <h3 className="text-lg font-bold mb-4 text-sap-blue">New Advance Entry</h3>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Worker</label>
+              <label className="sap-label">Worker</label>
               <select className="sap-input" required value={formData.worker_id} onChange={e => setFormData({...formData, worker_id: e.target.value})}>
                 <option value="">Select Worker</option>
                 {filteredWorkers.map(w => <option key={w.worker_id} value={w.worker_id}>{w.name} ({w.worker_id})</option>)}
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Amount</label>
+              <label className="sap-label">Amount (INR)</label>
               <input type="number" className="sap-input" required value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Date</label>
+              <label className="sap-label">Date</label>
               <input type="date" className="sap-input" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Paid By</label>
-              <input className="sap-input" required value={formData.paid_by} onChange={e => setFormData({...formData, paid_by: e.target.value})} />
+              <label className="sap-label">Paid By</label>
+              <input className="sap-input" required value={formData.paid_by} onChange={e => setFormData({...formData, paid_by: e.target.value})} placeholder="Payer Name" />
             </div>
-            <div className="col-span-2">
-              <label className="text-[10px] font-bold text-gray-600 mb-1 block">Remarks</label>
-              <input className="sap-input" value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+            <div className="md:col-span-2">
+              <label className="sap-label">Remarks</label>
+              <input className="sap-input" value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} placeholder="Optional notes" />
             </div>
-            <div className="col-span-3">
-              <button type="submit" className="sap-btn-primary w-full">Save Advance</button>
+            <div className="md:col-span-3 flex gap-2">
+              <button type="submit" className="sap-btn-primary flex-1">Save Advance</button>
+              <button type="button" onClick={() => setShowForm(false)} className="sap-btn-secondary">Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      <table className="sap-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>ID No</th>
-            <th>Worker Name</th>
-            <th>Amount</th>
-            <th>Paid By</th>
-            <th>Remarks</th>
-          </tr>
-        </thead>
-        <tbody>
-          {advances.filter(a => !selectedProject || a.project_id === Number(selectedProject)).map(a => (
-            <tr key={a.id}>
-              <td>{a.date}</td>
-              <td className="font-mono">{a.worker_id}</td>
-              <td className="font-semibold">{a.worker_name}</td>
-              <td className="font-mono">₹{a.amount.toLocaleString()}</td>
-              <td>{a.paid_by}</td>
-              <td className="text-[10px] italic">{a.remarks}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="sap-card">
+        <div className="sap-card-header">
+          <h3 className="sap-card-title">Advance Ledger</h3>
+        </div>
+        <div className="sap-table-container">
+          <table className="sap-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>ID No</th>
+                <th>Worker Name</th>
+                <th>Amount</th>
+                <th>Paid By</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {advances.filter(a => !selectedProject || a.project_id === Number(selectedProject)).map(a => (
+                <tr key={a.id}>
+                  <td>{new Date(a.date).toLocaleDateString()}</td>
+                  <td className="font-mono font-bold text-sap-blue">{a.worker_id}</td>
+                  <td className="font-medium">{a.worker_name}</td>
+                  <td className="font-mono font-bold">₹{a.amount.toLocaleString()}</td>
+                  <td>{a.paid_by}</td>
+                  <td className="text-xs italic text-sap-text-secondary">{a.remarks || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1124,12 +1247,12 @@ function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Proj
       });
 
       if (!response.ok) {
+        const text = await response.text();
         let errorMessage = 'Failed to save payment';
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          const text = await response.text();
           errorMessage = text.slice(0, 100) || `Server error (${response.status})`;
         }
         throw new Error(errorMessage);
@@ -1144,103 +1267,115 @@ function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Proj
   };
 
   return (
-    <div className="sap-panel p-4">
+    <div className="space-y-6">
       <SectionHeader title="Payment Settlement Console" />
       
-      <div className="mb-4 grid grid-cols-3 gap-3 items-end">
-        <div>
-          <label className="text-[10px] font-bold text-gray-600 mb-1 block">Project</label>
-          <select className="sap-input" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
-            <option value="">Select Project</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-[10px] font-bold text-gray-600 mb-1 block">Month</label>
-          <select className="sap-input" value={month} onChange={e => setMonth(e.target.value)}>
-            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-              <option key={m} value={m}>{new Date(2000, Number(m)-1).toLocaleString('default', { month: 'long' })}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-[10px] font-bold text-gray-600 mb-1 block">Year</label>
-          <input type="number" className="sap-input" value={year} onChange={e => setYear(e.target.value)} />
+      <div className="sap-card p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="sap-label">Project</label>
+            <select className="sap-input" value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+              <option value="">Select Project</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="sap-label">Month</label>
+            <select className="sap-input" value={month} onChange={e => setMonth(e.target.value)}>
+              {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+                <option key={m} value={m}>{new Date(2000, Number(m)-1).toLocaleString('default', { month: 'long' })}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="sap-label">Year</label>
+            <input type="number" className="sap-input" value={year} onChange={e => setYear(e.target.value)} />
+          </div>
         </div>
       </div>
 
       {!selectedProject ? (
-        <div className="text-center py-10 text-gray-400">
-          <Info size={32} className="mx-auto mb-2 opacity-20" />
-          <p className="text-[11px]">Please select a project to view payment settlements</p>
+        <div className="sap-card p-12 text-center text-sap-text-secondary">
+          <Info size={48} className="mx-auto mb-4 opacity-20" />
+          <p className="text-sm">Please select a project to view payment settlements</p>
         </div>
       ) : (
-        <table className="sap-table">
-          <thead>
-            <tr>
-              <th>SR NO</th>
-              <th>ID NO</th>
-              <th>Worker Name</th>
-              <th>Work Amount</th>
-              <th>Mess Ded.</th>
-              <th>Kharchi Ded.</th>
-              <th>Advance Ded.</th>
-              <th>Final Payment</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summaries.map(s => (
-              <tr key={s.worker_id}>
-                <td>{s.serial_no}</td>
-                <td className="font-mono">{s.worker_id}</td>
-                <td className="font-semibold">{s.name}</td>
-                <td>
-                  {editingWorker === s.worker_id ? (
-                    <input 
-                      type="number" 
-                      className="sap-input w-20" 
-                      value={editData.work_amount} 
-                      onChange={e => setEditData({...editData, work_amount: e.target.value})} 
-                    />
-                  ) : (
-                    <span className="font-mono">₹{s.work_amount.toLocaleString()}</span>
-                  )}
-                </td>
-                <td>
-                  {editingWorker === s.worker_id ? (
-                    <input 
-                      type="number" 
-                      className="sap-input w-20" 
-                      value={editData.mess_deduction} 
-                      onChange={e => setEditData({...editData, mess_deduction: e.target.value})} 
-                    />
-                  ) : (
-                    <span className="font-mono">₹{s.mess_deduction.toLocaleString()}</span>
-                  )}
-                </td>
-                <td className="text-orange-700 font-mono">₹{s.kharchi_deduction.toLocaleString()}</td>
-                <td className="text-red-700 font-mono">₹{s.advance_deduction.toLocaleString()}</td>
-                <td className="font-bold text-sap-blue font-mono">₹{s.final_payment.toLocaleString()}</td>
-                <td>
-                  {editingWorker === s.worker_id ? (
-                    <button onClick={() => handleSavePayment(s.worker_id)} className="text-green-700 font-bold hover:underline">Save</button>
-                  ) : (
-                    <button 
-                      onClick={() => {
-                        setEditingWorker(s.worker_id);
-                        setEditData({ work_amount: s.work_amount.toString(), mess_deduction: s.mess_deduction.toString() });
-                      }} 
-                      className="text-sap-blue hover:underline"
-                    >
-                      Edit
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="sap-card">
+          <div className="sap-card-header">
+            <h3 className="sap-card-title">Settlement Worksheet</h3>
+          </div>
+          <div className="sap-table-container">
+            <table className="sap-table">
+              <thead>
+                <tr>
+                  <th>SR NO</th>
+                  <th>ID NO</th>
+                  <th>Worker Name</th>
+                  <th>Work Amount</th>
+                  <th>Mess Ded.</th>
+                  <th>Kharchi Ded.</th>
+                  <th>Advance Ded.</th>
+                  <th>Final Payment</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summaries.map(s => (
+                  <tr key={s.worker_id}>
+                    <td className="text-sap-text-secondary">{s.serial_no}</td>
+                    <td className="font-mono font-bold text-sap-blue">{s.worker_id}</td>
+                    <td className="font-medium">{s.name}</td>
+                    <td>
+                      {editingWorker === s.worker_id ? (
+                        <input 
+                          type="number" 
+                          className="sap-input w-24" 
+                          value={editData.work_amount} 
+                          onChange={e => setEditData({...editData, work_amount: e.target.value})} 
+                        />
+                      ) : (
+                        <span className="font-mono">₹{s.work_amount.toLocaleString()}</span>
+                      )}
+                    </td>
+                    <td>
+                      {editingWorker === s.worker_id ? (
+                        <input 
+                          type="number" 
+                          className="sap-input w-24" 
+                          value={editData.mess_deduction} 
+                          onChange={e => setEditData({...editData, mess_deduction: e.target.value})} 
+                        />
+                      ) : (
+                        <span className="font-mono">₹{s.mess_deduction.toLocaleString()}</span>
+                      )}
+                    </td>
+                    <td className="text-orange-700 font-mono font-bold">₹{s.kharchi_deduction.toLocaleString()}</td>
+                    <td className="text-red-700 font-mono font-bold">₹{s.advance_deduction.toLocaleString()}</td>
+                    <td className="font-bold text-sap-blue font-mono">₹{s.final_payment.toLocaleString()}</td>
+                    <td>
+                      {editingWorker === s.worker_id ? (
+                        <div className="flex gap-2">
+                          <button onClick={() => handleSavePayment(s.worker_id)} className="text-green-600 font-bold hover:underline text-xs">Save</button>
+                          <button onClick={() => setEditingWorker(null)} className="text-sap-text-secondary hover:underline text-xs">Cancel</button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => {
+                            setEditingWorker(s.worker_id);
+                            setEditData({ work_amount: s.work_amount.toString(), mess_deduction: s.mess_deduction.toString() });
+                          }} 
+                          className="sap-btn-secondary !py-1 !px-3 !text-xs"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

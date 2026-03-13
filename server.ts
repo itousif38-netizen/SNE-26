@@ -3,14 +3,25 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import Database from "better-sqlite3";
 
-const dbPath = path.resolve("construct_erp.db");
-console.log(`Database path: ${dbPath}`);
-const db = new Database(dbPath, { verbose: console.log });
+console.log("--- SERVER.TS LOADING ---");
+console.log("NODE_ENV:", process.env.NODE_ENV);
+
+let db: any;
+try {
+  const dbPath = path.resolve("construct_erp.db");
+  console.log(`Attempting to open database at: ${dbPath}`);
+  db = new Database(dbPath, { verbose: console.log });
+  console.log("Database opened successfully");
+} catch (e) {
+  console.error("CRITICAL: Failed to open database:", e);
+  // We'll try to continue but routes will fail
+}
 
 // Initialize Database
-db.exec("PRAGMA foreign_keys = ON;");
-try {
-  db.exec(`
+if (db) {
+  db.exec("PRAGMA foreign_keys = ON;");
+  try {
+    db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -86,9 +97,10 @@ try {
       FOREIGN KEY(project_id) REFERENCES projects(id)
     );
   `);
-  console.log("Database tables initialized");
-} catch (e) {
-  console.error("Database initialization error:", e);
+    console.log("Database tables initialized");
+  } catch (e) {
+    console.error("Database initialization error:", e);
+  }
 }
 
 async function startServer() {
@@ -123,11 +135,18 @@ async function startServer() {
   });
 
   // API Routes
+  console.log("Registering API routes...");
   
   // Projects
   app.get("/api/projects", (req, res) => {
-    const projects = db.prepare("SELECT * FROM projects").all();
-    res.json(projects);
+    console.log("GET /api/projects hit");
+    try {
+      const projects = db.prepare("SELECT * FROM projects").all();
+      res.json(projects);
+    } catch (e: any) {
+      console.error("Error in GET /api/projects:", e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   app.post("/api/projects", (req, res) => {
@@ -323,6 +342,17 @@ async function startServer() {
     }
   });
 
+  // Catch-all for unmatched API routes
+  app.all("/api/*", (req, res) => {
+    console.warn(`404 - Unmatched API Request: ${req.method} ${req.url}`);
+    res.status(404).json({ 
+      error: "API route not found", 
+      method: req.method, 
+      url: req.url,
+      suggestion: "Check if the route is defined in server.ts"
+    });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -349,4 +379,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("FATAL ERROR DURING SERVER STARTUP:", err);
+  process.exit(1);
+});
