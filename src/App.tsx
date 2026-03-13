@@ -16,8 +16,11 @@ import {
   Briefcase,
   User,
   Hash,
-  Info
+  Info,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'motion/react';
 
 // --- Types ---
@@ -193,6 +196,7 @@ export default function App() {
       case 'kharchi': return <KharchiSection kharchi={kharchi} projects={projects} workers={workers} onRefresh={fetchData} notify={showNotification} />;
       case 'advances': return <AdvancesSection advances={advances} projects={projects} workers={workers} onRefresh={fetchData} notify={showNotification} />;
       case 'worker-payments': return <WorkerPaymentsSection projects={projects} onRefresh={fetchData} notify={showNotification} />;
+      case 'import': return <ImportSection projects={projects} onRefresh={fetchData} notify={showNotification} />;
       default: return <DashboardSection projects={projects} workers={workers} billing={billing} />;
     }
   };
@@ -255,6 +259,11 @@ export default function App() {
             <SidebarItem icon={Wallet} label="Kharchi" active={activeTab === 'kharchi'} onClick={() => setActiveTab('kharchi')} />
             <SidebarItem icon={HandCoins} label="Advances" active={activeTab === 'advances'} onClick={() => setActiveTab('advances')} />
             <SidebarItem icon={Banknote} label="Worker Settlements" active={activeTab === 'worker-payments'} onClick={() => setActiveTab('worker-payments')} />
+            
+            <div className="px-4 mt-6 mb-2">
+              <span className="text-[10px] font-bold text-sap-text-secondary uppercase tracking-widest">System</span>
+            </div>
+            <SidebarItem icon={Upload} label="Import Data" active={activeTab === 'import'} onClick={() => setActiveTab('import')} />
           </div>
         </aside>
 
@@ -1377,6 +1386,184 @@ function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Proj
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ImportSection({ projects, onRefresh, notify }: { projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
+  const [importType, setImportType] = useState<'workers' | 'projects'>('workers');
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        setPreviewData(data);
+        notify(`Loaded ${data.length} rows from ${file.name}`);
+      } catch (err) {
+        notify('Failed to parse Excel file', 'error');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const processImport = async () => {
+    if (previewData.length === 0) return;
+    setImporting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const row of previewData) {
+        const endpoint = importType === 'workers' ? '/api/workers' : '/api/projects';
+        
+        // Basic mapping logic
+        let payload: any = {};
+        if (importType === 'workers') {
+          payload = {
+            worker_id: row.worker_id || row['Worker ID'] || row.id || '',
+            name: row.name || row['Name'] || row['Worker Name'] || '',
+            project_id: Number(row.project_id || row['Project ID'] || 0),
+            designation: row.designation || row['Designation'] || row['Role'] || '',
+            joining_date: row.joining_date || row['Joining Date'] || new Date().toISOString().slice(0, 10),
+            serial_no: row.serial_no || row['Serial No'] || row['S.No'] || ''
+          };
+        } else {
+          payload = {
+            name: row.name || row['Project Name'] || '',
+            start_date: row.start_date || row['Start Date'] || new Date().toISOString().slice(0, 10),
+            address: row.address || row['Address'] || row['Site Address'] || '',
+            budget: Number(row.budget || row['Budget'] || 0)
+          };
+        }
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) successCount++;
+        else errorCount++;
+      }
+
+      notify(`Import complete: ${successCount} succeeded, ${errorCount} failed`);
+      setPreviewData([]);
+      onRefresh();
+    } catch (err) {
+      notify('Import process failed', 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader title="Data Import Utility" />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="sap-card p-6">
+          <h3 className="sap-card-title mb-4">1. Configure Import</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="sap-label">Import Entity Type</label>
+              <select 
+                className="sap-input" 
+                value={importType} 
+                onChange={e => {
+                  setImportType(e.target.value as any);
+                  setPreviewData([]);
+                }}
+              >
+                <option value="workers">Workers Registry</option>
+                <option value="projects">Project Portfolio</option>
+              </select>
+            </div>
+            <div>
+              <label className="sap-label">Excel File (.xlsx, .xls)</label>
+              <div className="border-2 border-dashed border-sap-border rounded-lg p-4 text-center hover:bg-sap-light-blue/30 transition-colors cursor-pointer relative">
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  onChange={handleFileUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+                <FileSpreadsheet className="mx-auto mb-2 text-sap-text-secondary" size={32} />
+                <p className="text-xs text-sap-text-secondary">Click or drag file to upload</p>
+              </div>
+            </div>
+            <div className="pt-4">
+              <button 
+                onClick={processImport}
+                disabled={previewData.length === 0 || importing}
+                className="sap-btn-primary w-full justify-center disabled:opacity-50"
+              >
+                {importing ? 'Processing...' : `Import ${previewData.length} Records`}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 sap-card">
+          <div className="sap-card-header">
+            <h3 className="sap-card-title">2. Data Preview</h3>
+            {previewData.length > 0 && (
+              <button onClick={() => setPreviewData([])} className="text-xs text-red-600 font-bold hover:underline">Clear</button>
+            )}
+          </div>
+          <div className="sap-table-container max-h-[400px]">
+            {previewData.length > 0 ? (
+              <table className="sap-table">
+                <thead>
+                  <tr>
+                    {Object.keys(previewData[0]).map(key => (
+                      <th key={key}>{key}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewData.slice(0, 10).map((row, i) => (
+                    <tr key={i}>
+                      {Object.values(row).map((val: any, j) => (
+                        <td key={j}>{val?.toString()}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-12 text-center text-sap-text-secondary">
+                <p className="text-sm italic">No data loaded. Please select an Excel file to preview.</p>
+              </div>
+            )}
+          </div>
+          {previewData.length > 10 && (
+            <div className="p-3 bg-gray-50 border-t border-sap-border text-center">
+              <p className="text-[10px] text-sap-text-secondary">Showing first 10 of {previewData.length} records</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="sap-card p-6 bg-sap-light-blue/20">
+        <h4 className="text-sm font-bold text-sap-blue mb-2">Import Guidelines</h4>
+        <ul className="text-xs text-sap-text-secondary space-y-1 list-disc pl-4">
+          <li>Ensure your Excel file has headers in the first row.</li>
+          <li>For <b>Workers</b>, include columns like: <i>worker_id, name, project_id, designation, joining_date, serial_no</i>.</li>
+          <li>For <b>Projects</b>, include columns like: <i>name, start_date, address, budget</i>.</li>
+          <li>Dates should be in YYYY-MM-DD format for best results.</li>
+          <li>Project IDs must exist in the system before importing workers assigned to them.</li>
+        </ul>
+      </div>
     </div>
   );
 }
