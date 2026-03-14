@@ -459,11 +459,16 @@ export default function App() {
           <button 
             onClick={async () => {
               try {
-                const res = await fetch('/api/test');
+                const res = await fetch('/api/health');
                 const data = await res.json();
-                showNotification(`System Status: ${data.message}`);
-              } catch (e) {
-                showNotification("System Offline", "error");
+                if (res.ok) {
+                  showNotification(`System Status: ${data.message || 'Online'}`);
+                } else {
+                  showNotification(`System Issue: ${data.error || res.statusText}`, "error");
+                }
+              } catch (e: any) {
+                console.error("Status check failed:", e);
+                showNotification(`System Offline: ${e.message}`, "error");
               }
             }}
             className="sap-btn-secondary !bg-transparent !text-white !border-white/30 hover:!bg-white/10"
