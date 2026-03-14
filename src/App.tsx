@@ -114,17 +114,252 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label:
   </button>
 );
 
-const SectionHeader = ({ title, onAdd }: { title: string, onAdd?: () => void }) => (
+const SectionHeader = ({ title, onAdd, onImport }: { title: string, onAdd?: () => void, onImport?: () => void }) => (
   <div className="flex items-center justify-between mb-6">
     <h1 className="text-2xl font-bold text-sap-text">{title}</h1>
-    {onAdd && (
-      <button onClick={onAdd} className="sap-btn-primary">
-        <Plus size={18} />
-        <span>Create New</span>
-      </button>
-    )}
+    <div className="flex gap-2">
+      {onImport && (
+        <button onClick={onImport} className="sap-btn-secondary">
+          <Upload size={18} />
+          <span>Import Excel</span>
+        </button>
+      )}
+      {onAdd && (
+        <button onClick={onAdd} className="sap-btn-primary">
+          <Plus size={18} />
+          <span>Create New</span>
+        </button>
+      )}
+    </div>
   </div>
 );
+
+function GenericImportModal({ 
+  isOpen, 
+  onClose, 
+  type, 
+  onRefresh, 
+  notify 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  type: 'workers' | 'projects' | 'billing' | 'client-payments' | 'kharchi' | 'advances' | 'worker-payments', 
+  onRefresh: () => void, 
+  notify: (m: string, t?: 'success' | 'error') => void 
+}) {
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPreviewData([]);
+      setImporting(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        setPreviewData(data);
+        notify(`Loaded ${data.length} rows from ${file.name}`);
+      } catch (err) {
+        notify('Failed to parse Excel file', 'error');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const processImport = async () => {
+    if (previewData.length === 0) return;
+    setImporting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const row of previewData) {
+        const endpoint = `/api/${type}`;
+        
+        let payload: any = {};
+        if (type === 'workers') {
+          payload = {
+            worker_id: row.worker_id || row['Worker ID'] || row.id || '',
+            name: row.name || row['Name'] || row['Worker Name'] || '',
+            project_id: Number(row.project_id || row['Project ID'] || 0),
+            designation: row.designation || row['Designation'] || row['Role'] || '',
+            joining_date: row.joining_date || row['Joining Date'] || new Date().toISOString().slice(0, 10),
+            serial_no: row.serial_no || row['Serial No'] || row['S.No'] || ''
+          };
+        } else if (type === 'projects') {
+          payload = {
+            name: row.name || row['Project Name'] || '',
+            start_date: row.start_date || row['Start Date'] || new Date().toISOString().slice(0, 10),
+            address: row.address || row['Address'] || row['Site Address'] || '',
+            budget: Number(row.budget || row['Budget'] || 0)
+          };
+        } else if (type === 'billing') {
+          payload = {
+            sr_no: row.sr_no || row['Sr No'] || '',
+            project_id: Number(row.project_id || row['Project ID'] || 0),
+            bill_no: row.bill_no || row['Bill No'] || '',
+            work_nature: row.work_nature || row['Work Nature'] || '',
+            amount: Number(row.amount || row['Amount'] || 0),
+            month: row.month || row['Month'] || '',
+            certify_date: row.certify_date || row['Certify Date'] || new Date().toISOString().slice(0, 10)
+          };
+        } else if (type === 'client-payments') {
+          payload = {
+            project_id: Number(row.project_id || row['Project ID'] || 0),
+            bill_value: Number(row.bill_value || row['Bill Value'] || 0),
+            amount_received: Number(row.amount_received || row['Amount Received'] || 0),
+            balance: Number(row.balance || row['Balance'] || 0)
+          };
+        } else if (type === 'kharchi') {
+          payload = {
+            worker_id: row.worker_id || row['Worker ID'] || '',
+            project_id: Number(row.project_id || row['Project ID'] || 0),
+            amount: Number(row.amount || row['Amount'] || 0),
+            date: row.date || row['Date'] || new Date().toISOString().slice(0, 10)
+          };
+        } else if (type === 'advances') {
+          payload = {
+            worker_id: row.worker_id || row['Worker ID'] || '',
+            project_id: Number(row.project_id || row['Project ID'] || 0),
+            amount: Number(row.amount || row['Amount'] || 0),
+            paid_by: row.paid_by || row['Paid By'] || '',
+            remarks: row.remarks || row['Remarks'] || '',
+            date: row.date || row['Date'] || new Date().toISOString().slice(0, 10)
+          };
+        } else if (type === 'worker-payments') {
+          payload = {
+            worker_id: row.worker_id || row['Worker ID'] || '',
+            project_id: Number(row.project_id || row['Project ID'] || 0),
+            work_amount: Number(row.work_amount || row['Work Amount'] || 0),
+            mess_deduction: Number(row.mess_deduction || row['Mess Deduction'] || 0),
+            month: row.month || row['Month'] || new Date().toISOString().slice(5, 7),
+            year: Number(row.year || row['Year'] || new Date().getFullYear())
+          };
+        }
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) successCount++;
+        else errorCount++;
+      }
+
+      notify(`Import complete: ${successCount} succeeded, ${errorCount} failed`);
+      onRefresh();
+      onClose();
+    } catch (err) {
+      notify('Import process failed', 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="sap-card w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+      >
+        <div className="sap-card-header flex justify-between items-center">
+          <h3 className="sap-card-title">Import {type.replace('-', ' ')} from Excel</h3>
+          <button onClick={onClose} className="text-sap-text-secondary hover:text-sap-text">✕</button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <label className="sap-label">Select Excel File</label>
+              <div className="border-2 border-dashed border-sap-border rounded-lg p-8 text-center hover:bg-sap-light-blue/30 transition-colors cursor-pointer relative">
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  onChange={handleFileUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+                <FileSpreadsheet className="mx-auto mb-2 text-sap-text-secondary" size={48} />
+                <p className="text-sm text-sap-text-secondary font-medium">Click or drag file to upload</p>
+                <p className="text-[10px] text-sap-text-secondary mt-1">Supports .xlsx, .xls files</p>
+              </div>
+            </div>
+            
+            <div className="bg-sap-light-blue/20 p-4 rounded-lg">
+              <h4 className="text-xs font-bold text-sap-blue uppercase tracking-wider mb-2">Expected Columns</h4>
+              <p className="text-[10px] text-sap-text-secondary mb-2">The system will try to match these headers:</p>
+              <div className="flex flex-wrap gap-1">
+                {type === 'workers' && ['worker_id', 'name', 'project_id', 'designation', 'joining_date', 'serial_no'].map(c => <span key={c} className="px-2 py-0.5 bg-white border border-sap-border rounded text-[10px] font-mono">{c}</span>)}
+                {type === 'projects' && ['name', 'start_date', 'address', 'budget'].map(c => <span key={c} className="px-2 py-0.5 bg-white border border-sap-border rounded text-[10px] font-mono">{c}</span>)}
+                {type === 'billing' && ['sr_no', 'project_id', 'bill_no', 'work_nature', 'amount', 'month', 'certify_date'].map(c => <span key={c} className="px-2 py-0.5 bg-white border border-sap-border rounded text-[10px] font-mono">{c}</span>)}
+                {type === 'client-payments' && ['project_id', 'bill_value', 'amount_received', 'balance'].map(c => <span key={c} className="px-2 py-0.5 bg-white border border-sap-border rounded text-[10px] font-mono">{c}</span>)}
+                {type === 'kharchi' && ['worker_id', 'project_id', 'amount', 'date'].map(c => <span key={c} className="px-2 py-0.5 bg-white border border-sap-border rounded text-[10px] font-mono">{c}</span>)}
+                {type === 'advances' && ['worker_id', 'project_id', 'amount', 'paid_by', 'remarks', 'date'].map(c => <span key={c} className="px-2 py-0.5 bg-white border border-sap-border rounded text-[10px] font-mono">{c}</span>)}
+                {type === 'worker-payments' && ['worker_id', 'project_id', 'work_amount', 'mess_deduction', 'month', 'year'].map(c => <span key={c} className="px-2 py-0.5 bg-white border border-sap-border rounded text-[10px] font-mono">{c}</span>)}
+              </div>
+            </div>
+          </div>
+
+          {previewData.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-bold">Data Preview ({previewData.length} records)</h4>
+                <button onClick={() => setPreviewData([])} className="text-xs text-red-600 font-bold hover:underline">Clear</button>
+              </div>
+              <div className="sap-table-container max-h-[300px]">
+                <table className="sap-table">
+                  <thead>
+                    <tr>
+                      {Object.keys(previewData[0]).map(key => (
+                        <th key={key}>{key}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewData.slice(0, 5).map((row, i) => (
+                      <tr key={i}>
+                        {Object.values(row).map((val: any, j) => (
+                          <td key={j}>{val?.toString()}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {previewData.length > 5 && <p className="text-[10px] text-sap-text-secondary text-center italic">Showing first 5 records</p>}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-sap-border bg-gray-50 flex justify-end gap-3">
+          <button onClick={onClose} className="sap-btn-secondary">Cancel</button>
+          <button 
+            onClick={processImport} 
+            disabled={previewData.length === 0 || importing}
+            className="sap-btn-primary disabled:opacity-50"
+          >
+            {importing ? 'Importing...' : `Confirm Import (${previewData.length})`}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('projects');
@@ -196,7 +431,6 @@ export default function App() {
       case 'kharchi': return <KharchiSection kharchi={kharchi} projects={projects} workers={workers} onRefresh={fetchData} notify={showNotification} />;
       case 'advances': return <AdvancesSection advances={advances} projects={projects} workers={workers} onRefresh={fetchData} notify={showNotification} />;
       case 'worker-payments': return <WorkerPaymentsSection projects={projects} onRefresh={fetchData} notify={showNotification} />;
-      case 'import': return <ImportSection projects={projects} onRefresh={fetchData} notify={showNotification} />;
       default: return <DashboardSection projects={projects} workers={workers} billing={billing} />;
     }
   };
@@ -259,11 +493,6 @@ export default function App() {
             <SidebarItem icon={Wallet} label="Kharchi" active={activeTab === 'kharchi'} onClick={() => setActiveTab('kharchi')} />
             <SidebarItem icon={HandCoins} label="Advances" active={activeTab === 'advances'} onClick={() => setActiveTab('advances')} />
             <SidebarItem icon={Banknote} label="Worker Settlements" active={activeTab === 'worker-payments'} onClick={() => setActiveTab('worker-payments')} />
-            
-            <div className="px-4 mt-6 mb-2">
-              <span className="text-[10px] font-bold text-sap-text-secondary uppercase tracking-widest">System</span>
-            </div>
-            <SidebarItem icon={Upload} label="Import Data" active={activeTab === 'import'} onClick={() => setActiveTab('import')} />
           </div>
         </aside>
 
@@ -435,6 +664,7 @@ function DashboardSection({ projects, workers, billing }: { projects: Project[],
 
 function ProjectsSection({ projects, onRefresh, notify }: { projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [formData, setFormData] = useState({ name: '', start_date: '', address: '', budget: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -471,7 +701,19 @@ function ProjectsSection({ projects, onRefresh, notify }: { projects: Project[],
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Project Portfolio" onAdd={() => setShowForm(true)} />
+      <SectionHeader 
+        title="Project Portfolio" 
+        onAdd={() => setShowForm(true)} 
+        onImport={() => setShowImport(true)}
+      />
+      
+      <GenericImportModal 
+        isOpen={showImport} 
+        onClose={() => setShowImport(false)} 
+        type="projects" 
+        onRefresh={onRefresh} 
+        notify={notify} 
+      />
       
       {showForm && (
         <div className="sap-card p-6 bg-gray-50/30">
@@ -557,6 +799,7 @@ function ProjectsSection({ projects, onRefresh, notify }: { projects: Project[],
 
 function WorkersSection({ workers, projects, onRefresh, notify }: { workers: Worker[], projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [formData, setFormData] = useState({ worker_id: '', name: '', project_id: '', designation: '', joining_date: '', serial_no: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -594,7 +837,19 @@ function WorkersSection({ workers, projects, onRefresh, notify }: { workers: Wor
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Workforce Management" onAdd={() => setShowForm(true)} />
+      <SectionHeader 
+        title="Workforce Management" 
+        onAdd={() => setShowForm(true)} 
+        onImport={() => setShowImport(true)}
+      />
+
+      <GenericImportModal 
+        isOpen={showImport} 
+        onClose={() => setShowImport(false)} 
+        type="workers" 
+        onRefresh={onRefresh} 
+        notify={notify} 
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {projects.map(p => (
@@ -688,6 +943,7 @@ function WorkersSection({ workers, projects, onRefresh, notify }: { workers: Wor
 
 function BillingSection({ billing, projects, onRefresh, notify }: { billing: Billing[], projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [formData, setFormData] = useState({ sr_no: '', project_id: '', bill_no: '', work_nature: '', amount: '', month: '', certify_date: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -733,7 +989,19 @@ function BillingSection({ billing, projects, onRefresh, notify }: { billing: Bil
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Billing & Invoicing" onAdd={() => setShowForm(true)} />
+      <SectionHeader 
+        title="Billing & Invoicing" 
+        onAdd={() => setShowForm(true)} 
+        onImport={() => setShowImport(true)}
+      />
+
+      <GenericImportModal 
+        isOpen={showImport} 
+        onClose={() => setShowImport(false)} 
+        type="billing" 
+        onRefresh={onRefresh} 
+        notify={notify} 
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="sap-card p-6 bg-sap-blue text-white flex justify-between items-center">
@@ -845,6 +1113,7 @@ function BillingSection({ billing, projects, onRefresh, notify }: { billing: Bil
 
 function ClientPaymentsSection({ payments, projects, onRefresh, notify }: { payments: ClientPayment[], projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [formData, setFormData] = useState({ project_id: '', bill_value: '', amount_received: '' });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -884,7 +1153,19 @@ function ClientPaymentsSection({ payments, projects, onRefresh, notify }: { paym
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Financial Settlement" onAdd={() => setShowForm(true)} />
+      <SectionHeader 
+        title="Financial Settlement" 
+        onAdd={() => setShowForm(true)} 
+        onImport={() => setShowImport(true)}
+      />
+
+      <GenericImportModal 
+        isOpen={showImport} 
+        onClose={() => setShowImport(false)} 
+        type="client-payments" 
+        onRefresh={onRefresh} 
+        notify={notify} 
+      />
 
       {showForm && (
         <div className="sap-card p-6 bg-gray-50/50">
@@ -952,6 +1233,7 @@ function ClientPaymentsSection({ payments, projects, onRefresh, notify }: { paym
 function KharchiSection({ kharchi, projects, workers, onRefresh, notify }: { kharchi: Kharchi[], projects: Project[], workers: Worker[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [formData, setFormData] = useState({ worker_id: '', amount: '', date: '' });
 
   const filteredWorkers = workers.filter(w => !selectedProject || w.project_id === Number(selectedProject));
@@ -991,7 +1273,18 @@ function KharchiSection({ kharchi, projects, workers, onRefresh, notify }: { kha
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Pocket Money Tracking" />
+      <SectionHeader 
+        title="Pocket Money Tracking" 
+        onImport={() => setShowImport(true)}
+      />
+      
+      <GenericImportModal 
+        isOpen={showImport} 
+        onClose={() => setShowImport(false)} 
+        type="kharchi" 
+        onRefresh={onRefresh} 
+        notify={notify} 
+      />
       
       <div className="sap-card p-6">
         <div className="flex flex-col md:flex-row gap-4 items-end">
@@ -1075,6 +1368,7 @@ function KharchiSection({ kharchi, projects, workers, onRefresh, notify }: { kha
 function AdvancesSection({ advances, projects, workers, onRefresh, notify }: { advances: Advance[], projects: Project[], workers: Worker[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [formData, setFormData] = useState({ worker_id: '', amount: '', paid_by: '', remarks: '', date: '' });
 
   const filteredWorkers = workers.filter(w => !selectedProject || w.project_id === Number(selectedProject));
@@ -1118,7 +1412,18 @@ function AdvancesSection({ advances, projects, workers, onRefresh, notify }: { a
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Advance Administration" />
+      <SectionHeader 
+        title="Advance Administration" 
+        onImport={() => setShowImport(true)}
+      />
+      
+      <GenericImportModal 
+        isOpen={showImport} 
+        onClose={() => setShowImport(false)} 
+        type="advances" 
+        onRefresh={onRefresh} 
+        notify={notify} 
+      />
       
       <div className="sap-card p-6">
         <div className="flex flex-col md:flex-row justify-between items-end gap-4">
@@ -1218,6 +1523,7 @@ function AdvancesSection({ advances, projects, workers, onRefresh, notify }: { a
 
 function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
   const [selectedProject, setSelectedProject] = useState<string>('');
+  const [showImport, setShowImport] = useState(false);
   const [month, setMonth] = useState<string>(new Date().toISOString().slice(5, 7));
   const [year, setYear] = useState<string>(new Date().getFullYear().toString());
   const [summaries, setSummaries] = useState<WorkerPaymentSummary[]>([]);
@@ -1277,7 +1583,21 @@ function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Proj
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Payment Settlement Console" />
+      <SectionHeader 
+        title="Payment Settlement Console" 
+        onImport={() => setShowImport(true)}
+      />
+
+      <GenericImportModal 
+        isOpen={showImport} 
+        onClose={() => setShowImport(false)} 
+        type="worker-payments" 
+        onRefresh={() => {
+          onRefresh();
+          fetchSummaries();
+        }} 
+        notify={notify} 
+      />
       
       <div className="sap-card p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -1386,184 +1706,6 @@ function WorkerPaymentsSection({ projects, onRefresh, notify }: { projects: Proj
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function ImportSection({ projects, onRefresh, notify }: { projects: Project[], onRefresh: () => void, notify: (m: string, t?: 'success' | 'error') => void }) {
-  const [importType, setImportType] = useState<'workers' | 'projects'>('workers');
-  const [previewData, setPreviewData] = useState<any[]>([]);
-  const [importing, setImporting] = useState(false);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
-        setPreviewData(data);
-        notify(`Loaded ${data.length} rows from ${file.name}`);
-      } catch (err) {
-        notify('Failed to parse Excel file', 'error');
-      }
-    };
-    reader.readAsBinaryString(file);
-  };
-
-  const processImport = async () => {
-    if (previewData.length === 0) return;
-    setImporting(true);
-    let successCount = 0;
-    let errorCount = 0;
-
-    try {
-      for (const row of previewData) {
-        const endpoint = importType === 'workers' ? '/api/workers' : '/api/projects';
-        
-        // Basic mapping logic
-        let payload: any = {};
-        if (importType === 'workers') {
-          payload = {
-            worker_id: row.worker_id || row['Worker ID'] || row.id || '',
-            name: row.name || row['Name'] || row['Worker Name'] || '',
-            project_id: Number(row.project_id || row['Project ID'] || 0),
-            designation: row.designation || row['Designation'] || row['Role'] || '',
-            joining_date: row.joining_date || row['Joining Date'] || new Date().toISOString().slice(0, 10),
-            serial_no: row.serial_no || row['Serial No'] || row['S.No'] || ''
-          };
-        } else {
-          payload = {
-            name: row.name || row['Project Name'] || '',
-            start_date: row.start_date || row['Start Date'] || new Date().toISOString().slice(0, 10),
-            address: row.address || row['Address'] || row['Site Address'] || '',
-            budget: Number(row.budget || row['Budget'] || 0)
-          };
-        }
-
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (res.ok) successCount++;
-        else errorCount++;
-      }
-
-      notify(`Import complete: ${successCount} succeeded, ${errorCount} failed`);
-      setPreviewData([]);
-      onRefresh();
-    } catch (err) {
-      notify('Import process failed', 'error');
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <SectionHeader title="Data Import Utility" />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="sap-card p-6">
-          <h3 className="sap-card-title mb-4">1. Configure Import</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="sap-label">Import Entity Type</label>
-              <select 
-                className="sap-input" 
-                value={importType} 
-                onChange={e => {
-                  setImportType(e.target.value as any);
-                  setPreviewData([]);
-                }}
-              >
-                <option value="workers">Workers Registry</option>
-                <option value="projects">Project Portfolio</option>
-              </select>
-            </div>
-            <div>
-              <label className="sap-label">Excel File (.xlsx, .xls)</label>
-              <div className="border-2 border-dashed border-sap-border rounded-lg p-4 text-center hover:bg-sap-light-blue/30 transition-colors cursor-pointer relative">
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls" 
-                  onChange={handleFileUpload}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-                <FileSpreadsheet className="mx-auto mb-2 text-sap-text-secondary" size={32} />
-                <p className="text-xs text-sap-text-secondary">Click or drag file to upload</p>
-              </div>
-            </div>
-            <div className="pt-4">
-              <button 
-                onClick={processImport}
-                disabled={previewData.length === 0 || importing}
-                className="sap-btn-primary w-full justify-center disabled:opacity-50"
-              >
-                {importing ? 'Processing...' : `Import ${previewData.length} Records`}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 sap-card">
-          <div className="sap-card-header">
-            <h3 className="sap-card-title">2. Data Preview</h3>
-            {previewData.length > 0 && (
-              <button onClick={() => setPreviewData([])} className="text-xs text-red-600 font-bold hover:underline">Clear</button>
-            )}
-          </div>
-          <div className="sap-table-container max-h-[400px]">
-            {previewData.length > 0 ? (
-              <table className="sap-table">
-                <thead>
-                  <tr>
-                    {Object.keys(previewData[0]).map(key => (
-                      <th key={key}>{key}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewData.slice(0, 10).map((row, i) => (
-                    <tr key={i}>
-                      {Object.values(row).map((val: any, j) => (
-                        <td key={j}>{val?.toString()}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="p-12 text-center text-sap-text-secondary">
-                <p className="text-sm italic">No data loaded. Please select an Excel file to preview.</p>
-              </div>
-            )}
-          </div>
-          {previewData.length > 10 && (
-            <div className="p-3 bg-gray-50 border-t border-sap-border text-center">
-              <p className="text-[10px] text-sap-text-secondary">Showing first 10 of {previewData.length} records</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="sap-card p-6 bg-sap-light-blue/20">
-        <h4 className="text-sm font-bold text-sap-blue mb-2">Import Guidelines</h4>
-        <ul className="text-xs text-sap-text-secondary space-y-1 list-disc pl-4">
-          <li>Ensure your Excel file has headers in the first row.</li>
-          <li>For <b>Workers</b>, include columns like: <i>worker_id, name, project_id, designation, joining_date, serial_no</i>.</li>
-          <li>For <b>Projects</b>, include columns like: <i>name, start_date, address, budget</i>.</li>
-          <li>Dates should be in YYYY-MM-DD format for best results.</li>
-          <li>Project IDs must exist in the system before importing workers assigned to them.</li>
-        </ul>
-      </div>
     </div>
   );
 }
