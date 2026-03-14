@@ -118,6 +118,11 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Direct health check on app (bypassing router)
+  app.get("/healthz", (req, res) => {
+    res.json({ status: "ok", source: "app_direct" });
+  });
+
   // Request Logger - Moved to top
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -380,6 +385,8 @@ async function startServer() {
     });
   });
 
+  console.log("API routes mounted. Initializing Vite...");
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -395,9 +402,11 @@ async function startServer() {
     });
   }
 
+  console.log(`Attempting to start server on port ${PORT}...`);
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`SUCCESS: Server is listening on 0.0.0.0:${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
+    console.log(`Local URL: http://localhost:${PORT}`);
   });
 
   // Global Error Handler

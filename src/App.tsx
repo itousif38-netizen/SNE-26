@@ -459,12 +459,27 @@ export default function App() {
           <button 
             onClick={async () => {
               try {
-                const res = await fetch('/api/health');
-                const data = await res.json();
-                if (res.ok) {
-                  showNotification(`System Status: ${data.message || 'Online'}`);
+                // Try the API router first
+                let res = await fetch('/api/health');
+                
+                // If that fails with HTML (likely proxy 404), try the direct app route
+                if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
+                  console.warn("API router health check failed or returned HTML, trying direct healthz...");
+                  res = await fetch('/healthz');
+                }
+
+                const contentType = res.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                  const data = await res.json();
+                  if (res.ok) {
+                    showNotification(`System Status: ${data.message || 'Online'} (${data.source || 'api'})`);
+                  } else {
+                    showNotification(`System Issue: ${data.error || res.statusText}`, "error");
+                  }
                 } else {
-                  showNotification(`System Issue: ${data.error || res.statusText}`, "error");
+                  const text = await res.text();
+                  console.error("Non-JSON response received:", text);
+                  showNotification(`System Error: Received non-JSON response. Server might be restarting.`, "error");
                 }
               } catch (e: any) {
                 console.error("Status check failed:", e);
