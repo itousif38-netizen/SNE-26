@@ -478,8 +478,9 @@ export default function App() {
                   }
                 } else {
                   const text = await res.text();
+                  const preview = text.slice(0, 30).replace(/<[^>]*>?/gm, '');
                   console.error("Non-JSON response received:", text);
-                  showNotification(`System Error: Received non-JSON response. Server might be restarting.`, "error");
+                  showNotification(`System Error: Received HTML instead of JSON. Preview: "${preview}..."`, "error");
                 }
               } catch (e: any) {
                 console.error("Status check failed:", e);
