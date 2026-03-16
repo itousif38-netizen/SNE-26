@@ -116,28 +116,28 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(express.json());
+
   // Request Logger - ABSOLUTE TOP
   app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    console.log(`[DEBUG] ${new Date().toISOString()} - ${req.method} ${req.url}`);
     next();
   });
 
-  app.use(express.json());
-
   // Direct health check on app (bypassing router)
   app.get("/healthz", (req, res) => {
-    res.json({ status: "ok", source: "app_direct" });
+    console.log("[DEBUG] /healthz hit");
+    res.json({ status: "ok", source: "app_direct", timestamp: new Date().toISOString() });
   });
 
-  const apiRouter = express.Router();
-
-  // Database-free health check
-  apiRouter.get("/health", (req, res) => {
+  // Basic API routes directly on app for maximum reliability
+  app.get("/api/health", (req, res) => {
+    console.log("[DEBUG] /api/health hit");
     res.json({ status: "ok", message: "Server is running", timestamp: new Date().toISOString() });
   });
 
-  apiRouter.get("/test", (req, res) => {
-    console.log("Test route hit");
+  app.get("/api/test", (req, res) => {
+    console.log("[DEBUG] /api/test hit");
     try {
       if (!db) throw new Error("Database not initialized");
       const dbCheck = db.prepare("SELECT count(*) as count FROM projects").get() as any;
@@ -155,6 +155,17 @@ async function startServer() {
       });
     }
   });
+
+  app.get("/api/projects-test", (req, res) => {
+    console.log("[DEBUG] /api/projects-test hit");
+    res.json({ message: "Direct projects test works" });
+  });
+
+  const apiRouter = express.Router();
+
+  // Mount API Router early
+  console.log("[DEBUG] Mounting /api router early...");
+  app.use("/api", apiRouter);
 
   // Projects
   apiRouter.get("/projects", (req, res) => {
@@ -371,12 +382,9 @@ async function startServer() {
     }
   });
 
-  // Mount API Router
-  app.use("/api", apiRouter);
-
-  // Catch-all for unmatched API routes
+  // Catch-all for unmatched API routes - MUST BE LAST
   apiRouter.all("*", (req, res) => {
-    console.warn(`404 - Unmatched API Request: ${req.method} ${req.url}`);
+    console.warn(`[DEBUG] 404 - Unmatched API Request: ${req.method} ${req.url}`);
     res.status(404).json({ 
       error: "API route not found", 
       method: req.method, 
@@ -385,7 +393,9 @@ async function startServer() {
     });
   });
 
-  console.log("API routes mounted. Initializing Vite...");
+  console.log("API routes defined. Initializing Vite...");
+
+  // Vite middleware for development
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
@@ -414,6 +424,7 @@ async function startServer() {
     console.error("GLOBAL ERROR:", err);
     res.status(500).json({ error: err.message || "Internal Server Error" });
   });
+  console.log("startServer function execution finished.");
 }
 
 startServer().catch((err) => {

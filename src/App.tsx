@@ -394,10 +394,24 @@ export default function App() {
         { name: 'advances', url: '/api/advances' }
       ];
 
-      const responses = await Promise.all(endpoints.map(e => fetch(e.url)));
+      const responses = await Promise.all(endpoints.map(e => {
+        const fullUrl = `${window.location.origin}${e.url}`;
+        console.log(`[DEBUG] Fetching ${e.name} from: ${fullUrl}`);
+        return fetch(e.url);
+      }));
       
       for (let i = 0; i < responses.length; i++) {
         if (!responses[i].ok) {
+          console.warn(`API ${endpoints[i].name} failed, trying test route if applicable...`);
+          if (endpoints[i].name === 'projects') {
+             const testRes = await fetch('/api/projects-test');
+             if (testRes.ok) {
+               console.log("Projects test route worked!");
+               const testData = await testRes.json();
+               showNotification(`Note: Projects loaded via test route: ${testData.message}`, "info");
+               // We'll still throw to see the error, but this helps debug
+             }
+          }
           const errorText = await responses[i].text().catch(() => "No error body");
           throw new Error(`API ${endpoints[i].name} failed (${responses[i].status}): ${errorText.slice(0, 50)}`);
         }
@@ -478,9 +492,9 @@ export default function App() {
                   }
                 } else {
                   const text = await res.text();
-                  const preview = text.slice(0, 30).replace(/<[^>]*>?/gm, '');
+                  const preview = text.slice(0, 50).replace(/<[^>]*>?/gm, '');
                   console.error("Non-JSON response received:", text);
-                  showNotification(`System Error: Received HTML instead of JSON. Preview: "${preview}..."`, "error");
+                  showNotification(`System Error: Received HTML. Origin: ${window.location.origin}. Preview: "${preview}..."`, "error");
                 }
               } catch (e: any) {
                 console.error("Status check failed:", e);
